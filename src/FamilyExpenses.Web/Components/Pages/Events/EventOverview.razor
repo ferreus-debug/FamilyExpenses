@@ -1,0 +1,196 @@
+@page "/events/{EventId:guid}"
+@attribute [Authorize]
+@inherits EventPageBase
+@inject ExpenseService Expenses
+@inject SettlementService Settlements
+
+<PageTitle>@(Details?.Name ?? "Begivenhed")</PageTitle>
+
+@if (Details is null)
+{
+    <MudProgressLinear Indeterminate="true" Color="Color.Primary" />
+}
+else
+{
+    <MudStack Row="true" AlignItems="AlignItems.Center" Justify="Justify.SpaceBetween" Class="mb-2" Wrap="Wrap.Wrap">
+        <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="1">
+            <MudText Typo="Typo.h4">@Details.Name</MudText>
+            @if (Details.IsSettled)
+            {
+                <MudChip T="string" Color="Color.Success" Icon="@Icons.Material.Filled.Lock">Afregnet</MudChip>
+            }
+        </MudStack>
+        @if (Details.IsAdmin)
+        {
+            <MudStack Row="true" Spacing="1">
+                <MudIconButton Icon="@Icons.Material.Filled.Edit" OnClick="RenameAsync" aria-label="Omdøb" Disabled="Details.IsSettled" />
+                <MudIconButton Icon="@Icons.Material.Filled.Delete" Color="Color.Error" OnClick="DeleteAsync" aria-label="Slet begivenhed" />
+            </MudStack>
+        }
+    </MudStack>
+
+    <EventTabs EventId="EventId" Active="overview" IsAdmin="Details.IsAdmin" />
+
+    @if (Details.IsAdmin && Details.MyHouseholdId is null && Details.Households.Count > 0)
+    {
+        <MudAlert Severity="Severity.Info" Class="mb-4">
+            <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2" Wrap="Wrap.Wrap">
+                <span>Hvilken husstand hører du selv til?</span>
+                @foreach (var h in Details.Households)
+                {
+                    <MudButton Size="Size.Small" Variant="Variant.Outlined" OnClick="() => JoinAsync(h.Id)">@h.Name</MudButton>
+                }
+            </MudStack>
+        </MudAlert>
+    }
+
+    @if (MyBalance is { } mine)
+    {
+        <MudPaper Class="pa-4 mb-4 d-flex align-center flex-wrap gap-3" Outlined="true" data-testid="my-balance">
+            <MudIcon Icon="@Icons.Material.Filled.AccountBalanceWallet" Color="Color.Primary" />
+            <div>
+                <MudText Typo="Typo.caption">Jeres saldo (@mine.Name)</MudText>
+                <MudText Typo="Typo.h6">@MyBalanceText(mine)</MudText>
+            </div>
+            <MudSpacer />
+            <MudButton Href="@($"events/{EventId}/settlement")" Color="Color.Primary">Se afregning</MudButton>
+        </MudPaper>
+    }
+
+    <MudGrid Class="mb-4">
+        <MudItem xs="6" md="3">
+            <MudPaper Class="pa-4" Outlined="true">
+                <MudText Typo="Typo.caption">Udgifter i alt</MudText>
+                <MudText Typo="Typo.h5" data-testid="total">@Format.Money(_total)</MudText>
+            </MudPaper>
+        </MudItem>
+        <MudItem xs="6" md="3">
+            <MudPaper Class="pa-4" Outlined="true">
+                <MudText Typo="Typo.caption">Antal udgifter</MudText>
+                <MudText Typo="Typo.h5">@(_expenses?.Count ?? 0)</MudText>
+            </MudPaper>
+        </MudItem>
+        <MudItem xs="6" md="3">
+            <MudPaper Class="pa-4" Outlined="true">
+                <MudText Typo="Typo.caption">Personer</MudText>
+                <MudText Typo="Typo.h5">@Details.Households.Sum(h => h.Participants.Count)</MudText>
+            </MudPaper>
+        </MudItem>
+        <MudItem xs="6" md="3">
+            <MudPaper Class="pa-4" Outlined="true">
+                <MudText Typo="Typo.caption">Samlet vægt</MudText>
+                <MudText Typo="Typo.h5">@Format.Weight(Details.Households.Sum(h => h.Weight))</MudText>
+            </MudPaper>
+        </MudItem>
+    </MudGrid>
+
+    <MudGrid>
+        <MudItem xs="12" md="6">
+            <MudText Typo="Typo.h6" Class="mb-2">Husstande</MudText>
+            <MudList T="string" Dense="true">
+                @foreach (var h in Details.Households)
+                {
+                    <MudListItem T="string" Icon="@(h.Kind == HouseholdKind.Family ? Icons.Material.Filled.People : Icons.Material.Filled.Person)">
+                        <MudStack Row="true" Justify="Justify.SpaceBetween">
+                            <span>@h.Name @(h.Id == Details.MyHouseholdId ? "(dig)" : "")</span>
+                            <MudText Typo="Typo.body2" Color="Color.Secondary">
+                                @h.Participants.Count personer · vægt @Format.Weight(h.Weight)
+                            </MudText>
+                        </MudStack>
+                    </MudListItem>
+                }
+            </MudList>
+            @if (Details.Households.Count == 0)
+            {
+                <MudButton Href="@($"events/{EventId}/households")" Variant="Variant.Outlined" Color="Color.Primary">Tilføj familier</MudButton>
+            }
+        </MudItem>
+        <MudItem xs="12" md="6">
+            <MudStack Row="true" AlignItems="AlignItems.Center" Justify="Justify.SpaceBetween" Class="mb-2">
+                <MudText Typo="Typo.h6">Seneste udgifter</MudText>
+                <MudButton Href="@($"events/{EventId}/expenses")" Size="Size.Small">Se alle</MudButton>
+            </MudStack>
+            @if (_expenses is { Count: > 0 })
+            {
+                <MudList T="string" Dense="true">
+                    @foreach (var e in _expenses.Take(5))
+                    {
+                        <MudListItem T="string">
+                            <MudStack Row="true" Justify="Justify.SpaceBetween">
+                                <span>@e.Description <MudText Typo="Typo.caption" Inline="true">· @e.PaidByName</MudText></span>
+                                <span>@Format.Money(e.Amount)</span>
+                            </MudStack>
+                        </MudListItem>
+                    }
+                </MudList>
+            }
+            else
+            {
+                <MudText Typo="Typo.body2" Color="Color.Secondary">Ingen udgifter endnu.</MudText>
+            }
+        </MudItem>
+    </MudGrid>
+}
+
+@code {
+    private IReadOnlyList<ExpenseDto>? _expenses;
+    private SettlementDto? _settlement;
+
+    private HouseholdBalanceDto? MyBalance =>
+        _settlement is { Total: > 0 } ? _settlement.Balances.FirstOrDefault(b => b.HouseholdId == Details?.MyHouseholdId) : null;
+
+    private string MyBalanceText(HouseholdBalanceDto mine)
+    {
+        var pays = _settlement!.Transfers.Where(t => t.FromHouseholdId == mine.HouseholdId).ToList();
+        var gets = _settlement.Transfers.Where(t => t.ToHouseholdId == mine.HouseholdId).ToList();
+        if (pays.Count > 0)
+        {
+            return "I skal betale " + string.Join(" og ", pays.Select(t => $"{Format.Money(t.Amount)} til {t.ToName}"));
+        }
+
+        return gets.Count > 0
+            ? $"I skal modtage {Format.Money(gets.Sum(t => t.Amount))}"
+            : "I har betalt præcis jeres andel";
+    }
+
+    private decimal _total => _expenses?.Sum(e => e.Amount) ?? 0;
+
+    protected override async Task ReloadAsync()
+    {
+        await base.ReloadAsync();
+        if (Details is not null)
+        {
+            _expenses = await LoadAsync(() => Expenses.ListAsync(EventId));
+            _settlement = await LoadAsync(() => Settlements.GetAsync(EventId));
+        }
+    }
+
+    private async Task RenameAsync()
+    {
+        var dialog = await Dialogs.ShowAsync<NameDialog>("Omdøb begivenhed",
+            new DialogParameters<NameDialog> { { d => d.Value, Details!.Name } });
+        if (await dialog.Result is { Canceled: false, Data: string name }
+            && await RunAsync(() => Events.RenameAsync(EventId, name)))
+        {
+            await ReloadAsync();
+        }
+    }
+
+    private async Task DeleteAsync()
+    {
+        if (await ConfirmAsync("Slet begivenhed",
+                $"Vil du slette \"{Details!.Name}\" med alle udgifter? Det kan ikke fortrydes.", "Slet") == true
+            && await RunAsync(() => Events.DeleteAsync(EventId), "Begivenheden er slettet."))
+        {
+            Navigation.NavigateTo("/");
+        }
+    }
+
+    private async Task JoinAsync(Guid householdId)
+    {
+        if (await RunAsync(() => Events.JoinHouseholdAsync(EventId, householdId)))
+        {
+            await ReloadAsync();
+        }
+    }
+}

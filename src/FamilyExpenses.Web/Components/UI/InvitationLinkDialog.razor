@@ -1,0 +1,43 @@
+@inject IJSRuntime JS
+
+<MudDialog>
+    <DialogContent>
+        <MudText Class="mb-2">
+            Send dette link til <strong>@HouseholdName</strong>. Det kan bruges én gang og udløber @Expires.ToLocalTime().ToString("d. MMM yyyy").
+        </MudText>
+        <MudTextField Value="Url" ReadOnly="true" Variant="Variant.Outlined" Lines="2" />
+    </DialogContent>
+    <DialogActions>
+        <MudButton StartIcon="@Icons.Material.Filled.ContentCopy" OnClick="CopyAsync">@(_copied ? "Kopieret!" : "Kopiér link")</MudButton>
+        <MudButton Color="Color.Primary" Variant="Variant.Filled" OnClick="() => Dialog.Close()">Færdig</MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter]
+    private IMudDialogInstance Dialog { get; set; } = default!;
+
+    [Parameter, EditorRequired]
+    public string Url { get; set; } = "";
+
+    [Parameter, EditorRequired]
+    public string HouseholdName { get; set; } = "";
+
+    [Parameter]
+    public DateTimeOffset Expires { get; set; }
+
+    private bool _copied;
+
+    private async Task CopyAsync()
+    {
+        try
+        {
+            await JS.InvokeVoidAsync("navigator.clipboard.writeText", Url);
+            _copied = true;
+        }
+        catch (JSException)
+        {
+            // Clipboard needs HTTPS or localhost; the link can still be copied from the field.
+        }
+    }
+}

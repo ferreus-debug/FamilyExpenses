@@ -1,0 +1,6 @@
+<Project>
+  <!-- Projects that set UseSharedTestDatabase get the real-SQLite fixture from tests/Shared. -->
+  <ItemGroup Condition="'$(UseSharedTestDatabase)' == 'true'">
+    <Compile Include="$(MSBuildThisFileDirectory)Shared\*.cs" Link="Shared\%(Filename)%(Extension)" />
+  </ItemGroup>
+</Project>

@@ -1,0 +1,69 @@
+@page "/invite/{Token}"
+@inherits AppComponentBase
+@inject InvitationService Invitations
+
+<PageTitle>Invitation</PageTitle>
+
+<div class="account-page">
+    <MudPaper Class="pa-6" Elevation="2">
+        @if (_loading)
+        {
+            <MudProgressLinear Indeterminate="true" Color="Color.Primary" />
+        }
+        else if (_preview is null)
+        {
+            <MudAlert Severity="Severity.Error">Linket findes ikke. Spørg efter et nyt.</MudAlert>
+        }
+        else if (!_preview.IsValid)
+        {
+            <MudAlert Severity="Severity.Warning">Linket til @_preview.EventName er allerede brugt eller udløbet. Spørg efter et nyt.</MudAlert>
+        }
+        else
+        {
+            <MudText Typo="Typo.h5" GutterBottom="true">Du er inviteret</MudText>
+            <MudText Class="mb-4">
+                Til <strong>@_preview.EventName</strong> som en del af <strong>@_preview.HouseholdName</strong>.
+            </MudText>
+
+            <AuthorizeView>
+                <Authorized>
+                    <MudButton Variant="Variant.Filled" Color="Color.Primary" FullWidth="true" Disabled="Busy"
+                               OnClick="AcceptAsync">Deltag som @_preview.HouseholdName</MudButton>
+                </Authorized>
+                <NotAuthorized>
+                    <MudStack Spacing="2">
+                        <MudButton Href="@RegisterHref" Variant="Variant.Filled" Color="Color.Primary" FullWidth="true">Opret konto</MudButton>
+                        <MudButton Href="@LoginHref" Variant="Variant.Outlined" Color="Color.Primary" FullWidth="true">Jeg har allerede en konto</MudButton>
+                    </MudStack>
+                </NotAuthorized>
+            </AuthorizeView>
+        }
+    </MudPaper>
+</div>
+
+@code {
+    [Parameter]
+    public string Token { get; set; } = "";
+
+    private InvitationPreview? _preview;
+    private bool _loading = true;
+
+    private string RegisterHref => $"Account/Register?invite={Uri.EscapeDataString(Token)}";
+
+    private string LoginHref => $"Account/Login?ReturnUrl={Uri.EscapeDataString($"/invite/{Token}")}";
+
+    protected override async Task OnParametersSetAsync()
+    {
+        _preview = await LoadAsync(() => Invitations.PreviewAsync(Token));
+        _loading = false;
+    }
+
+    private async Task AcceptAsync()
+    {
+        Guid eventId = default;
+        if (await RunAsync(async () => eventId = await Invitations.AcceptAsync(Token), "Velkommen! Du er nu med."))
+        {
+            Navigation.NavigateTo($"events/{eventId}");
+        }
+    }
+}

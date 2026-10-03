@@ -1,0 +1,23 @@
+@page "/Error"
+@attribute [ExcludeFromInteractiveRouting]
+@using System.Diagnostics
+
+<PageTitle>Fejl</PageTitle>
+
+<MudText Typo="Typo.h5" Color="Color.Error" GutterBottom="true">Der opstod en fejl under behandlingen af din forespørgsel.</MudText>
+
+@if (ShowRequestId)
+{
+    <MudText><strong>Request ID:</strong> <code>@RequestId</code></MudText>
+}
+
+@code {
+    [CascadingParameter]
+    private HttpContext? HttpContext { get; set; }
+
+    private string? RequestId { get; set; }
+    private bool ShowRequestId => !string.IsNullOrEmpty(RequestId);
+
+    protected override void OnInitialized() =>
+        RequestId = Activity.Current?.Id ?? HttpContext?.TraceIdentifier;
+}

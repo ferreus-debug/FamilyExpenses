@@ -1,0 +1,136 @@
+@page "/events/{EventId:guid}/expenses"
+@attribute [Authorize]
+@inherits EventPageBase
+@inject ExpenseService ExpenseService
+@inject TimeProvider Time
+
+<PageTitle>Udgifter · @(Details?.Name)</PageTitle>
+
+@if (Details is null)
+{
+    <MudProgressLinear Indeterminate="true" Color="Color.Primary" />
+}
+else
+{
+    <MudText Typo="Typo.h4" Class="mb-2">@Details.Name</MudText>
+    <EventTabs EventId="EventId" Active="expenses" IsAdmin="Details.IsAdmin" />
+
+    <MudStack Row="true" AlignItems="AlignItems.Center" Justify="Justify.SpaceBetween" Class="mb-4" Wrap="Wrap.Wrap">
+        <MudText Typo="Typo.h6">I alt: <span data-testid="expenses-total">@Format.Money(_expenses?.Sum(e => e.Amount) ?? 0)</span></MudText>
+        @if (!Details.IsSettled)
+        {
+            <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Add"
+                       OnClick="AddAsync" Disabled="!HasParticipants">Tilføj udgift</MudButton>
+        }
+    </MudStack>
+
+    @if (!HasParticipants)
+    {
+        <MudAlert Severity="Severity.Info" Class="mb-4">Tilføj familier og personer under "Husstande", før I registrerer udgifter.</MudAlert>
+    }
+
+    <MudTable Items="_expenses" Hover="true" Breakpoint="Breakpoint.Sm" Loading="_expenses is null" Dense="true"
+              Elevation="1">
+        <HeaderContent>
+            <MudTh>Dato</MudTh>
+            <MudTh>Beskrivelse</MudTh>
+            <MudTh Style="text-align:right">Beløb</MudTh>
+            <MudTh>Betalt af</MudTh>
+            <MudTh>Deles mellem</MudTh>
+            <MudTh></MudTh>
+        </HeaderContent>
+        <RowTemplate>
+            <MudTd DataLabel="Dato">@Format.Date(context.Date)</MudTd>
+            <MudTd DataLabel="Beskrivelse">
+                @context.Description
+                <MudText Typo="Typo.caption" Color="Color.Secondary" Class="d-block">af @context.CreatedByName</MudText>
+            </MudTd>
+            <MudTd DataLabel="Beløb" Style="text-align:right">@Format.Money(context.Amount)</MudTd>
+            <MudTd DataLabel="Betalt af">@context.PaidByName <MudText Typo="Typo.caption" Inline="true">(@context.PaidByHouseholdName)</MudText></MudTd>
+            <MudTd DataLabel="Deles mellem">@context.SharedWithSummary</MudTd>
+            <MudTd Style="white-space:nowrap">
+                @if (context.CanEdit && !Details.IsSettled)
+                {
+                    <MudIconButton Size="Size.Small" Icon="@Icons.Material.Filled.Edit" OnClick="() => EditAsync(context)"
+                                   aria-label="@($"Ret {context.Description}")" />
+                    <MudIconButton Size="Size.Small" Icon="@Icons.Material.Filled.Delete" Color="Color.Error"
+                                   OnClick="() => RemoveAsync(context)" aria-label="@($"Slet {context.Description}")" />
+                }
+            </MudTd>
+        </RowTemplate>
+        <NoRecordsContent>
+            <MudText Color="Color.Secondary">Ingen udgifter endnu.</MudText>
+        </NoRecordsContent>
+    </MudTable>
+}
+
+@code {
+    [CascadingParameter]
+    private Task<AuthenticationState> AuthState { get; set; } = default!;
+
+    private IReadOnlyList<ExpenseDto>? _expenses;
+
+    private bool HasParticipants => Details?.Households.Any(h => h.Participants.Count > 0) == true;
+
+    protected override async Task ReloadAsync()
+    {
+        await base.ReloadAsync();
+        if (Details is not null)
+        {
+            _expenses = await LoadAsync(() => ExpenseService.ListAsync(EventId)) ?? [];
+        }
+    }
+
+    private async Task AddAsync()
+    {
+        var today = DateOnly.FromDateTime(Time.GetLocalNow().DateTime);
+        var myself = await GuessMyselfAsync();
+        var model = new ExpenseFormModel(Details!.Households, today, myself);
+        var input = await ShowDialogAsync("Tilføj udgift", model);
+        if (input is not null && await RunAsync(() => ExpenseService.AddAsync(EventId, input), "Udgiften er gemt."))
+        {
+            await ReloadAsync();
+        }
+    }
+
+    private async Task EditAsync(ExpenseDto expense)
+    {
+        var input = await ShowDialogAsync("Ret udgift", ExpenseFormModel.ForEdit(Details!.Households, expense));
+        if (input is not null && await RunAsync(() => ExpenseService.UpdateAsync(EventId, expense.Id, input), "Udgiften er opdateret."))
+        {
+            await ReloadAsync();
+        }
+    }
+
+    private async Task RemoveAsync(ExpenseDto expense)
+    {
+        if (await ConfirmAsync("Slet udgift", $"Vil du slette \"{expense.Description}\" ({Format.Money(expense.Amount)})?", "Slet") == true
+            && await RunAsync(() => ExpenseService.RemoveAsync(EventId, expense.Id), "Udgiften er slettet."))
+        {
+            await ReloadAsync();
+        }
+    }
+
+    /// <summary>Default payer: the person in my household with my name, else its first person.</summary>
+    private async Task<Guid?> GuessMyselfAsync()
+    {
+        var myHousehold = Details!.Households.FirstOrDefault(h => h.Id == Details.MyHouseholdId);
+        if (myHousehold is null)
+        {
+            return null;
+        }
+
+        var name = (await AuthState).User.FindFirst("DisplayName")?.Value;
+        return (myHousehold.Participants.FirstOrDefault(p => string.Equals(p.Name, name, StringComparison.CurrentCultureIgnoreCase))
+            ?? myHousehold.Participants.FirstOrDefault())?.Id;
+    }
+
+    private async Task<ExpenseInput?> ShowDialogAsync(string title, ExpenseFormModel model)
+    {
+        var dialog = await Dialogs.ShowAsync<ExpenseDialog>(
+            title,
+            new DialogParameters<ExpenseDialog> { { d => d.Model, model } },
+            new DialogOptions { MaxWidth = MaxWidth.Small, FullWidth = true, CloseOnEscapeKey = true });
+        return await dialog.Result is { Canceled: false, Data: ExpenseInput input } ? input : null;
+    }
+}

@@ -1,0 +1,100 @@
+<MudDialog>
+    <DialogContent>
+        <MudStack Spacing="2">
+            <MudTextField @bind-Value="Model.Description" Label="Hvad var det?" Placeholder="Fx indkøb, sommerhus, is"
+                          MaxLength="200" AutoFocus="true" Immediate="true" />
+            <MudStack Row="true" Spacing="2">
+                <MudNumericField T="decimal?" @bind-Value="Model.Amount" Label="Beløb" Adornment="Adornment.End"
+                                 AdornmentText="kr." Min="0" Format="N2" Culture="@Danish" HideSpinButtons="true" />
+                <MudDatePicker @bind-Date="Model.Date" Label="Dato" DateFormat="dd-MM-yyyy" Culture="@Danish" />
+            </MudStack>
+
+            <MudSelect T="Guid?" @bind-Value="Model.PaidByParticipantId" Label="Betalt af"
+                       ToStringFunc="@PayerName">
+                @foreach (var household in Model.Households)
+                {
+                    @foreach (var p in household.Participants)
+                    {
+                        <MudSelectItem T="Guid?" Value="@p.Id">@p.Name (@household.Name)</MudSelectItem>
+                    }
+                }
+            </MudSelect>
+
+            <div>
+                <MudStack Row="true" AlignItems="AlignItems.Center" Justify="Justify.SpaceBetween">
+                    <MudText Typo="Typo.subtitle2">Deles mellem</MudText>
+                    <MudText Typo="Typo.caption" data-testid="selected-weight">
+                        @Model.SelectedCount @(Model.SelectedCount == 1 ? "person" : "personer") · vægt @Format.Weight(Model.SelectedWeight)
+                    </MudText>
+                </MudStack>
+                <MudCheckBox T="bool" Value="Model.AllSelected" ValueChanged="Model.SelectAll" Label="Alle" Color="Color.Primary" />
+                @foreach (var household in Model.Households)
+                {
+                    @if (household.Kind == HouseholdKind.ExtraPerson)
+                    {
+                        @foreach (var p in household.Participants)
+                        {
+                            <div class="ml-4">
+                                <MudCheckBox T="bool" Value="Model.IsSelected(p.Id)" Color="Color.Primary"
+                                             ValueChanged="v => Model.SetParticipant(p.Id, v)"
+                                             Label="@($"{p.Name} ({Format.Weight(p.Weight)}, ekstra person)")" />
+                            </div>
+                        }
+
+                        continue;
+                    }
+
+                    <div class="ml-4">
+                        <MudCheckBox T="bool?" Value="Model.HouseholdState(household)" TriState="true"
+                                     ValueChanged="_ => Model.ToggleHousehold(household)"
+                                     Label="@household.Name" Color="Color.Primary" />
+                        <div class="ml-8 d-flex flex-wrap">
+                            @foreach (var p in household.Participants)
+                            {
+                                <MudCheckBox T="bool" Value="Model.IsSelected(p.Id)" Dense="true"
+                                             ValueChanged="v => Model.SetParticipant(p.Id, v)"
+                                             Label="@($"{p.Name} ({Format.Weight(p.Weight)})")" />
+                            }
+                        </div>
+                    </div>
+                }
+            </div>
+
+            @foreach (var error in _errors)
+            {
+                <MudAlert Severity="Severity.Warning" Dense="true">@error</MudAlert>
+            }
+        </MudStack>
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="() => Dialog.Cancel()">Annullér</MudButton>
+        <MudButton Color="Color.Primary" Variant="Variant.Filled" OnClick="Submit">Gem</MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    private static readonly System.Globalization.CultureInfo Danish = System.Globalization.CultureInfo.GetCultureInfo("da-DK");
+
+    [CascadingParameter]
+    private IMudDialogInstance Dialog { get; set; } = default!;
+
+    [Parameter, EditorRequired]
+    public ExpenseFormModel Model { get; set; } = default!;
+
+    private IReadOnlyList<string> _errors = [];
+
+    private string PayerName(Guid? id) =>
+        Model.Households.SelectMany(h => h.Participants.Select(p => (p, h)))
+            .Where(x => x.p.Id == id)
+            .Select(x => $"{x.p.Name} ({x.h.Name})")
+            .FirstOrDefault() ?? string.Empty;
+
+    private void Submit()
+    {
+        _errors = Model.Validate();
+        if (_errors.Count == 0)
+        {
+            Dialog.Close(DialogResult.Ok(Model.ToInput()));
+        }
+    }
+}

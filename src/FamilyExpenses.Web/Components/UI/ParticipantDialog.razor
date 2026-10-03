@@ -1,0 +1,46 @@
+<MudDialog>
+    <DialogContent>
+        <MudForm @ref="_form">
+            <MudTextField @bind-Value="_name" Label="Navn" Required="true" RequiredError="Skriv et navn"
+                          MaxLength="100" AutoFocus="true" />
+            <MudRadioGroup T="ParticipantType" @bind-Value="_type" Class="mt-4">
+                <MudRadio Value="ParticipantType.Adult" Color="Color.Primary">Voksen (tæller 1)</MudRadio>
+                <MudRadio Value="ParticipantType.Child" Color="Color.Primary">Barn (tæller 0,5)</MudRadio>
+            </MudRadioGroup>
+        </MudForm>
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="() => Dialog.Cancel()">Annullér</MudButton>
+        <MudButton Color="Color.Primary" Variant="Variant.Filled" OnClick="SubmitAsync">Gem</MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter]
+    private IMudDialogInstance Dialog { get; set; } = default!;
+
+    [Parameter]
+    public string? Name { get; set; }
+
+    [Parameter]
+    public ParticipantType Type { get; set; } = ParticipantType.Adult;
+
+    private MudForm _form = default!;
+    private string? _name;
+    private ParticipantType _type;
+
+    protected override void OnInitialized()
+    {
+        _name = Name;
+        _type = Type;
+    }
+
+    private async Task SubmitAsync()
+    {
+        await _form.ValidateAsync();
+        if (_form.IsValid && !string.IsNullOrWhiteSpace(_name))
+        {
+            Dialog.Close(DialogResult.Ok(new ParticipantDialogResult(_name.Trim(), _type)));
+        }
+    }
+}

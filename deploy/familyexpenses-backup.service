@@ -1,0 +1,15 @@
+# Daily SQLite backup, triggered by familyexpenses-backup.timer.
+[Unit]
+Description=Backup af Fællesudgifter-databasen
+
+[Service]
+Type=oneshot
+User=familyexpenses
+Group=familyexpenses
+Environment=DB=/var/lib/familyexpenses/familyexpenses.db
+Environment=BACKUP_DIR=/var/lib/familyexpenses/backups
+Environment=KEEP_DAYS=30
+EnvironmentFile=-/etc/familyexpenses/familyexpenses.env
+ExecStart=/usr/local/bin/familyexpenses-backup
+NoNewPrivileges=true
+PrivateTmp=true

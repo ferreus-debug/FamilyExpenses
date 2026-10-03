@@ -1,0 +1,92 @@
+@page "/events/{EventId:guid}/settlement"
+@attribute [Authorize]
+@inherits EventPageBase
+@inject SettlementService SettlementService
+@inject IJSRuntime JS
+
+<PageTitle>Afregning · @(Details?.Name)</PageTitle>
+
+@if (Details is null || _settlement is null)
+{
+    <MudProgressLinear Indeterminate="true" Color="Color.Primary" />
+}
+else
+{
+    <MudText Typo="Typo.h4" Class="mb-2">@Details.Name</MudText>
+    <EventTabs EventId="EventId" Active="settlement" IsAdmin="Details.IsAdmin" />
+
+    @if (Details.IsSettled)
+    {
+        <MudAlert Severity="Severity.Success" Icon="@Icons.Material.Filled.Lock" Class="mb-4">
+            Begivenheden er afregnet og låst. @(Details.IsAdmin ? "Genåbn den, hvis noget skal rettes." : "")
+        </MudAlert>
+    }
+
+    <MudStack Row="true" Spacing="2" Class="mb-4" Wrap="Wrap.Wrap">
+        <MudButton Variant="Variant.Outlined" StartIcon="@Icons.Material.Filled.ContentCopy" OnClick="CopyAsync">
+            Kopiér som tekst
+        </MudButton>
+        @if (Details.IsAdmin)
+        {
+            @if (Details.IsSettled)
+            {
+                <MudButton Variant="Variant.Outlined" Color="Color.Warning" StartIcon="@Icons.Material.Filled.LockOpen"
+                           OnClick="ReopenAsync">Genåbn</MudButton>
+            }
+            else if (_settlement.Total > 0)
+            {
+                <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Lock"
+                           OnClick="MarkSettledAsync">Markér som afregnet</MudButton>
+            }
+        }
+    </MudStack>
+
+    <SettlementSummary Settlement="_settlement" MyHouseholdId="Details.MyHouseholdId" />
+}
+
+@code {
+    private SettlementDto? _settlement;
+
+    protected override async Task ReloadAsync()
+    {
+        await base.ReloadAsync();
+        if (Details is not null)
+        {
+            _settlement = await LoadAsync(() => SettlementService.GetAsync(EventId));
+        }
+    }
+
+    private async Task MarkSettledAsync()
+    {
+        if (await ConfirmAsync("Markér som afregnet",
+                "Når begivenheden er afregnet, kan ingen ændre udgifter eller husstande, før den genåbnes. Fortsæt?",
+                "Markér som afregnet") == true
+            && await RunAsync(() => Events.MarkSettledAsync(EventId), "Begivenheden er markeret som afregnet."))
+        {
+            await ReloadAsync();
+        }
+    }
+
+    private async Task ReopenAsync()
+    {
+        if (await RunAsync(() => Events.ReopenAsync(EventId), "Begivenheden er genåbnet."))
+        {
+            await ReloadAsync();
+        }
+    }
+
+    private async Task CopyAsync()
+    {
+        var text = SettlementText.Build(Details!.Name, _settlement!);
+        try
+        {
+            await JS.InvokeVoidAsync("navigator.clipboard.writeText", text);
+            Snackbar.Add("Afregningen er kopieret – indsæt den i en besked.", Severity.Success);
+        }
+        catch (JSException)
+        {
+            // Clipboard needs HTTPS; show the text so it can be copied by hand.
+            await Dialogs.ShowMessageBoxAsync("Afregning", text);
+        }
+    }
+}
