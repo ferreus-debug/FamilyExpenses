@@ -394,3 +394,4 @@ dotnet_naming_style.s_camelcase.capitalization = camel_case
 # Test projects: underscores in test names (Method_condition_result) are allowed
 [tests/**.cs]
 dotnet_diagnostic.CA1707.severity = none
+dotnet_diagnostic.CA1861.severity = none

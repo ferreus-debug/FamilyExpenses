@@ -37,7 +37,8 @@ Ved afregning vægtes deltagerne:
 3. **Administrer deltagere** pr. familie: navn + type (Voksen/Barn).
 4. **Registrer udgift**: beskrivelse, beløb, dato, **betalt af (person)**, evt. kategori.
    - Betaler vælges som en konkret deltager; afregningen krediterer personens husstand.
-   - Som standard deles udgiften mellem **alle** deltagere.
+   - Som standard deles udgiften mellem **alle** deltagere, der er med på oprettelsestidspunktet
+     (gemmes eksplicit, så personer der tilføjes senere ikke ændrer tidligere udgifter).
    - Man kan vælge et **udsnit af deltagere** (pr. person, med "vælg hele familien"-genvej) – fx hvis kun to familier var med til en restaurant.
    - Udgiftslisten viser hvem der lagde ud, og hvem udgiften deles mellem.
 5. **Rediger / slet udgift**.
@@ -105,7 +106,7 @@ FamilyExpenses.sln
 ```csharp
 public enum ParticipantType { Adult, Child }
 
-public sealed class Event            // aggregate root
+public sealed class ExpenseEvent     // aggregate root ("Event" er et reserveret ord i VB → CA1716)
 {
     Guid Id; string Name; string Currency; bool IsSettled;
     IReadOnlyList<Household> Households;
@@ -136,7 +137,7 @@ public sealed class Expense
 {
     Guid Id; string Description; Money Amount; DateOnly Date;
     Guid PaidByParticipantId;            // konkret person; husstand udledes heraf
-    IReadOnlyList<Guid> ParticipantIds;  // tom = alle deltagere
+    IReadOnlyList<Guid> SharedWithParticipantIds;  // altid eksplicit; "alle" udfyldes ved oprettelse
     string CreatedByUserId;              // til "kun egne udgifter"-reglen
 }
 
@@ -183,8 +184,8 @@ Overførsler (minimer antal):
 
 Overførsler:
 1. Ekstra person → Familie A: 1.000 kr.
-2. Familie B → Familie A: 250 kr.
-3. Familie B → Familie C: 550 kr.
+2. Familie B → Familie C: 550 kr.
+3. Familie B → Familie A: 250 kr.
 
 Dette eksempel bliver den første acceptance-test.
 
