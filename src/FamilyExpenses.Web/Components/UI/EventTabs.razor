@@ -27,6 +27,7 @@
             yield return ("overview", "Oversigt", $"events/{EventId}", Icons.Material.Filled.Dashboard);
             yield return ("expenses", "Udgifter", $"events/{EventId}/expenses", Icons.Material.Filled.Receipt);
             yield return ("households", "Husstande", $"events/{EventId}/households", Icons.Material.Filled.People);
+            yield return ("settlement", "Afregning", $"events/{EventId}/settlement", Icons.Material.Filled.Calculate);
             if (IsAdmin)
             {
                 yield return ("invitations", "Invitationer", $"events/{EventId}/invitations", Icons.Material.Filled.Link);

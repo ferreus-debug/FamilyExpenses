@@ -2,6 +2,7 @@
 @attribute [Authorize]
 @inherits EventPageBase
 @inject ExpenseService Expenses
+@inject SettlementService Settlements
 
 <PageTitle>@(Details?.Name ?? "Begivenhed")</PageTitle>
 
@@ -41,6 +42,19 @@ else
                 }
             </MudStack>
         </MudAlert>
+    }
+
+    @if (MyBalance is { } mine)
+    {
+        <MudPaper Class="pa-4 mb-4 d-flex align-center flex-wrap gap-3" Outlined="true" data-testid="my-balance">
+            <MudIcon Icon="@Icons.Material.Filled.AccountBalanceWallet" Color="Color.Primary" />
+            <div>
+                <MudText Typo="Typo.caption">Jeres saldo (@mine.Name)</MudText>
+                <MudText Typo="Typo.h6">@MyBalanceText(mine)</MudText>
+            </div>
+            <MudSpacer />
+            <MudButton Href="@($"events/{EventId}/settlement")" Color="Color.Primary">Se afregning</MudButton>
+        </MudPaper>
     }
 
     <MudGrid Class="mb-4">
@@ -120,6 +134,24 @@ else
 
 @code {
     private IReadOnlyList<ExpenseDto>? _expenses;
+    private SettlementDto? _settlement;
+
+    private HouseholdBalanceDto? MyBalance =>
+        _settlement is { Total: > 0 } ? _settlement.Balances.FirstOrDefault(b => b.HouseholdId == Details?.MyHouseholdId) : null;
+
+    private string MyBalanceText(HouseholdBalanceDto mine)
+    {
+        var pays = _settlement!.Transfers.Where(t => t.FromHouseholdId == mine.HouseholdId).ToList();
+        var gets = _settlement.Transfers.Where(t => t.ToHouseholdId == mine.HouseholdId).ToList();
+        if (pays.Count > 0)
+        {
+            return "I skal betale " + string.Join(" og ", pays.Select(t => $"{Format.Money(t.Amount)} til {t.ToName}"));
+        }
+
+        return gets.Count > 0
+            ? $"I skal modtage {Format.Money(gets.Sum(t => t.Amount))}"
+            : "I har betalt præcis jeres andel";
+    }
 
     private decimal _total => _expenses?.Sum(e => e.Amount) ?? 0;
 
@@ -129,6 +161,7 @@ else
         if (Details is not null)
         {
             _expenses = await LoadAsync(() => Expenses.ListAsync(EventId));
+            _settlement = await LoadAsync(() => Settlements.GetAsync(EventId));
         }
     }
 

@@ -175,6 +175,36 @@ const annasRow = bo.locator('tr', { hasText: 'Sommerhus' });
 await annasRow.waitFor();
 if (await annasRow.getByRole('button').count() !== 0) throw new Error('Bo kan rette Annas udgift');
 
+// Øre are rounded per expense (largest remainder), so e.g. A gets +1 øre on both shared expenses.
+step('Afregning: Anna ser saldi og overførsler med præcise beløb');
+await anna.goto(`${eventUrl}/settlement`);
+await ready(anna);
+const amounts = await anna.getByTestId('transfer-amount').allInnerTexts();
+if (JSON.stringify(amounts) !== JSON.stringify(['1.084,55 kr.', '1.076,34 kr.', '522,27 kr.']))
+  throw new Error(`Uventede overførsler: ${amounts}`);
+const balances = (await anna.getByTestId('balance').allInnerTexts()).map(t => t.trim());
+if (JSON.stringify(balances) !== JSON.stringify(['+2.683,16 kr.', '-1.076,34 kr.', '-1.084,55 kr.', '-522,27 kr.']))
+  throw new Error(`Uventede saldi: ${balances}`);
+await anna.getByText('I skal modtage').first().waitFor();
+await anna.screenshot({ path: `${SHOTS}settlement.png`, fullPage: true });
+
+step('Bo ser hvad Familie B skal betale, også på oversigten');
+await bo.goto(eventUrl);
+await ready(bo);
+await bo.getByTestId('my-balance').getByText('I skal betale 1.076,34 kr. til Familie A').waitFor();
+
+step('Anna markerer som afregnet – alt låses – og genåbner');
+await anna.getByRole('button', { name: 'Markér som afregnet' }).click();
+await anna.locator('.mud-dialog').getByRole('button', { name: 'Markér som afregnet' }).click();
+await anna.getByText('Begivenheden er afregnet og låst.').waitFor();
+await bo.goto(`${eventUrl}/expenses`);
+await ready(bo);
+await bo.getByText('Indkøb Netto').waitFor();
+if (await bo.getByRole('button', { name: 'Tilføj udgift' }).count() !== 0) throw new Error('Kan tilføje udgift efter afregning');
+if (await bo.getByRole('button', { name: /Ret Indkøb Netto/ }).count() !== 0) throw new Error('Kan rette udgift efter afregning');
+await anna.getByRole('button', { name: 'Genåbn' }).click();
+await anna.getByRole('button', { name: 'Markér som afregnet' }).waitFor();
+
 step('Bo logger ud og ind igen');
 await bo.goto(`${BASE}/`);
 await ready(bo);

@@ -1,18 +1,12 @@
 using Bunit;
 using FamilyExpenses.Web.Components.UI;
-using MudBlazor.Services;
 
 namespace FamilyExpenses.Web.Tests;
 
-public sealed class EventTabsTests : BunitContext
+public sealed class EventTabsTests : MudTestContext
 {
     private static readonly Guid EventId = Guid.NewGuid();
 
-    public EventTabsTests()
-    {
-        Services.AddMudServices();
-        JSInterop.Mode = JSRuntimeMode.Loose;
-    }
 
     [Fact]
     public void Admin_sees_invitations_tab()
@@ -24,6 +18,7 @@ public sealed class EventTabsTests : BunitContext
             $"events/{EventId}",
             $"events/{EventId}/expenses",
             $"events/{EventId}/households",
+            $"events/{EventId}/settlement",
             $"events/{EventId}/invitations",
         ]);
         cut.Find($"a[href='events/{EventId}/expenses']").ClassList.ShouldContain("mud-button-filled");
@@ -34,7 +29,8 @@ public sealed class EventTabsTests : BunitContext
     {
         var cut = Render<EventTabs>(p => p.Add(t => t.EventId, EventId).Add(t => t.Active, "overview"));
 
-        cut.FindAll("a").Count.ShouldBe(3);
+        cut.FindAll("a").Count.ShouldBe(4);
+        cut.Markup.ShouldContain("Afregning");
         cut.Markup.ShouldNotContain("Invitationer");
     }
 }

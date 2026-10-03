@@ -4,18 +4,15 @@ using FamilyExpenses.Application.Abstractions;
 using FamilyExpenses.Application.Events;
 using FamilyExpenses.Web.Components.Pages;
 using Microsoft.Extensions.DependencyInjection;
-using MudBlazor.Services;
 
 namespace FamilyExpenses.Web.Tests;
 
-public sealed class HomePageTests : BunitContext
+public sealed class HomePageTests : MudTestContext
 {
     private readonly BunitAuthorizationContext _auth;
 
     public HomePageTests()
     {
-        Services.AddMudServices();
-        JSInterop.Mode = JSRuntimeMode.Loose;
         _auth = AddAuthorization();
         Services.AddSingleton<IUnitOfWorkFactory>(new EmptyUnitOfWorkFactory());
         Services.AddSingleton<ICurrentUser>(new StaticCurrentUser("anna"));

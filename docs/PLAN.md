@@ -180,6 +180,7 @@ For hver udgift:
 2. `vægtsum = Σ vægt(deltager)`
 3. Hver husstands andel = `beløb × (husstandens deltagervægt / vægtsum)`.
 4. Afrund til øre; **resterende øre** fordeles deterministisk (største rest først), så summen altid går op.
+   Afrundingen sker **pr. udgift**, så saldi kan afvige med få øre fra en beregning på totalbeløbet.
 
 Derefter pr. husstand:
 - `betalt = Σ udgifter hvor betaleren er en person i husstanden`
@@ -238,7 +239,7 @@ Reglerne tjekkes ét sted (`EventAccess`) ved hvert service-kald. Webben leverer
 | `/events/{id}` | Dashboard: husstande, samlet forbrug, seneste udgifter |
 | `/events/{id}/households` | Familier og deltagere (voksen/barn-toggle), "Tilføj/udskift ekstra person" (navn + voksen/barn) |
 | `/events/{id}/expenses` | `MudDataGrid` med udgifter (betalt af person, deles mellem) + dialog til tilføj/rediger |
-| `/events/{id}/settlement` | Saldi-tabel + overførselsliste + "Markér som afregnet" |
+| `/events/{id}/settlement` | "Hvem betaler hvem" (egen husstand fremhævet), saldi-tabel med betalt pr. person, "Kopiér som tekst" til SMS, "Markér som afregnet"/"Genåbn" (admin) |
 
 Genbrugelige komponenter (MudBlazor):
 - `HouseholdCard` (`MudCard`), `ParticipantEditor` (`MudChipSet` voksen/barn),
