@@ -141,19 +141,35 @@ public sealed class Expense
     string CreatedByUserId;              // til "kun egne udgifter"-reglen
 }
 
-// Infrastructure (Identity) – ikke en del af domænet
-public sealed class AppUser : IdentityUser
+// Adgang (Domain/Access) – separate aggregater, refererer events via id
+public sealed class EventMember      // bruger ↔ begivenhed (+ husstand); unik pr. (EventId, UserId)
 {
-    Guid? HouseholdId;                   // brugeren tilhører én husstand
+    Guid EventId; string UserId; Guid? HouseholdId; MemberRole Role;   // Admin | Member
 }
 
-public sealed class Invitation
+public sealed class Invitation       // engangslink pr. husstand; kun SHA-256-hash af token gemmes
 {
-    Guid Id; Guid EventId; Guid HouseholdId; string TokenHash; DateTime ExpiresUtc; bool Used;
+    Guid EventId; Guid HouseholdId; string TokenHash; DateTimeOffset ExpiresAt;
+    string? AcceptedByUserId; DateTimeOffset? AcceptedAt;
+    EventMember Accept(string userId, DateTimeOffset now);   // fejler hvis brugt eller udløbet
 }
+
+// Infrastructure (Identity)
+public sealed class AppUser : IdentityUser { string DisplayName; }
 ```
 
 Vægtene ligger som konstanter i `Weight` (ét sted), så de nemt kan gøres konfigurerbare senere.
+
+En bruger kan være med i flere begivenheder (fx sommerferie og skiferie) og tilhøre én husstand i hver –
+derfor ligger koblingen i `EventMember` i stedet for på `AppUser`.
+
+### Persistens (fase 2)
+- Én SQLite-fil indeholder domænedata, Identity-tabeller og Data Protection-nøgler (én fil at tage backup af).
+- `Money` gemmes som heltal i øre (`AmountMinorUnits`), `SharedWithParticipantIds` som JSON-array.
+- Husstande og deltagere har en persisteret `SortOrder`, så visning og øre-afrunding er identisk efter genindlæsning.
+- Application kender kun `IUnitOfWorkFactory`/repositories; hver operation får sin egen kortlivede `DbContext`
+  (anbefalet til Blazor Server, hvor et circuit lever længe).
+- Migrations køres automatisk ved opstart.
 
 ## 6. Afregningsalgoritme
 

@@ -12,9 +12,11 @@ builder.Services.AddMudServices();
 
 builder.Services
     .AddApplication()
-    .AddInfrastructure();
+    .AddInfrastructure(builder.Configuration);
 
 var app = builder.Build();
+
+await app.Services.MigrateDatabaseAsync();
 
 var danish = CultureInfo.GetCultureInfo("da-DK");
 app.UseRequestLocalization(options =>
@@ -38,4 +40,4 @@ app.MapStaticAssets();
 app.MapRazorComponents<App>()
     .AddInteractiveServerRenderMode();
 
-app.Run();
+await app.RunAsync();

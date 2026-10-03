@@ -1,6 +1,6 @@
 namespace FamilyExpenses.Domain.Common;
 
-internal static class Guard
+public static class Guard
 {
     public const int MaxNameLength = 100;
 

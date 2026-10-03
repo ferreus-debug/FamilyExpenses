@@ -27,6 +27,18 @@ public sealed class ExpenseEventTests
     }
 
     [Fact]
+    public void Households_and_participants_get_increasing_sort_order()
+    {
+        var example = CreatePlanExample();
+
+        example.Event.Households.Select(h => h.SortOrder).ShouldBe([0, 1, 2, 3]);
+        example.A.Participants.Select(p => p.SortOrder).ShouldBe([0, 1, 2, 3]);
+
+        example.Event.RemoveParticipant(example.Carla.Id);
+        example.Event.AddParticipant(example.C.Id, "Ny", ParticipantType.Adult).SortOrder.ShouldBe(3);
+    }
+
+    [Fact]
     public void Failed_rename_leaves_names_unchanged()
     {
         var example = CreatePlanExample();

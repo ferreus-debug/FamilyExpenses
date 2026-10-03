@@ -21,11 +21,17 @@ public sealed class ExpenseEvent
         Currency = Guard.Name(currency, "Valuta");
     }
 
-    public Guid Id { get; }
+    // For EF Core.
+    private ExpenseEvent()
+    {
+        Currency = string.Empty;
+    }
+
+    public Guid Id { get; private set; }
 
     public string Name { get; private set; } = string.Empty;
 
-    public string Currency { get; }
+    public string Currency { get; private set; }
 
     /// <summary>When settled, the event is locked for changes until it is reopened.</summary>
     public bool IsSettled { get; private set; }
@@ -56,7 +62,7 @@ public sealed class ExpenseEvent
             throw new DomainException($"Der kan højst være {MaxFamilies} familier.");
         }
 
-        var family = new Household(name, HouseholdKind.Family);
+        var family = new Household(name, HouseholdKind.Family, NextHouseholdSortOrder());
         EnsureUniqueHouseholdName(family.Name, exceptId: null);
         _households.Add(family);
         return family;
@@ -99,7 +105,7 @@ public sealed class ExpenseEvent
             return existing;
         }
 
-        var household = new Household(name, HouseholdKind.ExtraPerson);
+        var household = new Household(name, HouseholdKind.ExtraPerson, NextHouseholdSortOrder());
         EnsureUniqueHouseholdName(household.Name, exceptId: null);
         household.AddParticipant(name, type);
         _households.Add(household);
@@ -242,6 +248,9 @@ public sealed class ExpenseEvent
 
         return ids;
     }
+
+    private int NextHouseholdSortOrder() =>
+        _households.Count == 0 ? 0 : _households.Max(h => h.SortOrder) + 1;
 
     private void EnsureOpen()
     {

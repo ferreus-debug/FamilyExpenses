@@ -21,7 +21,12 @@ public sealed class Expense
         Update(description, amount, date, paidByParticipantId, sharedWithParticipantIds);
     }
 
-    public Guid Id { get; }
+    // For EF Core.
+    private Expense()
+    {
+    }
+
+    public Guid Id { get; private set; }
 
     public string Description { get; private set; } = string.Empty;
 
@@ -38,7 +43,7 @@ public sealed class Expense
     /// </summary>
     public IReadOnlyList<Guid> SharedWithParticipantIds => _sharedWithParticipantIds;
 
-    public string CreatedByUserId { get; }
+    public string CreatedByUserId { get; private set; } = string.Empty;
 
     internal bool References(Guid participantId) =>
         PaidByParticipantId == participantId || _sharedWithParticipantIds.Contains(participantId);

@@ -14,8 +14,9 @@ public static class SettlementCalculator
     {
         ArgumentNullException.ThrowIfNull(expenseEvent);
 
-        var households = expenseEvent.Households;
-        var order = households.Select((h, index) => (h.Id, index)).ToDictionary(x => x.Id, x => x.index);
+        // Tie-breaks use SortOrder (not list position) so the result is identical however the data was loaded.
+        var households = expenseEvent.Households.OrderBy(h => h.SortOrder).ToList();
+        var order = households.ToDictionary(h => h.Id, h => h.SortOrder);
         var participants = expenseEvent.Participants.ToDictionary(p => p.Id);
 
         var paid = households.ToDictionary(h => h.Id, _ => 0L);

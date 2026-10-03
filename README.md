@@ -13,6 +13,14 @@ dotnet test                                   # kør tests
 dotnet format                                 # formatér koden
 ```
 
+Databasen er en SQLite-fil (`familyexpenses.db` som standard – kan ændres med `ConnectionStrings__Default`).
+Migrations køres automatisk ved opstart. Ny migration efter ændringer i modellen:
+
+```bash
+dotnet tool restore
+dotnet ef migrations add <Navn> --project src/FamilyExpenses.Infrastructure --output-dir Persistence/Migrations
+```
+
 ## Struktur
 
 | Projekt | Ansvar |

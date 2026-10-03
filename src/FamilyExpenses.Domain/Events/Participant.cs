@@ -4,20 +4,29 @@ namespace FamilyExpenses.Domain.Events;
 
 public sealed class Participant
 {
-    internal Participant(Guid householdId, string name, ParticipantType type)
+    internal Participant(Guid householdId, string name, ParticipantType type, int sortOrder)
     {
         Id = Guid.NewGuid();
         HouseholdId = householdId;
+        SortOrder = sortOrder;
         Update(name, type);
     }
 
-    public Guid Id { get; }
+    // For EF Core.
+    private Participant()
+    {
+    }
 
-    public Guid HouseholdId { get; }
+    public Guid Id { get; private set; }
+
+    public Guid HouseholdId { get; private set; }
 
     public string Name { get; private set; } = string.Empty;
 
     public ParticipantType Type { get; private set; }
+
+    /// <summary>Creation order within the household.</summary>
+    public int SortOrder { get; private set; }
 
     public Weight Weight => Weight.For(Type);
 
