@@ -131,6 +131,19 @@ Næste merge til `main` deployer fremad igen som normalt.
 > En rollback skifter kun koden, ikke databasen. Har den nye version migreret databasen, kan den gamle
 > fejle mod den – så gendan fra backuppen, der blev taget lige før deployet (se *Gendan fra backup*).
 
+### Når et deploy hænger i "Queued"
+
+Deploy-jobbet kører på Pi'ens egen runner, så er den offline, venter jobbet i køen i stedet for at fejle.
+Et `deploy-watchdog`-job kører ved siden af og får kørslen til at fejle (med vejledningen her i
+opsummeringen), hvis Pi'en ikke har taget deployet inden for 5 minutter. Det ventende deploy lander stadig
+af sig selv, når runneren er tilbage. Tjek status med
+`gh api repos/ferreus-debug/FamilyExpenses/actions/runners --jq '.runners[].status'` og på Pi'en
+`systemctl is-active actions.runner.ferreus-debug-FamilyExpenses.pi-familyexpenses.service`.
+
+Har GitHub slettet runnerens registrering (sker efter længere tid offline, eller efter en auto-opdatering
+– set hos wowanalyser), så registrér den igen med `setup-runner.sh` som beskrevet ovenfor; scriptet rydder
+selv op i den gamle registrering.
+
 > Runneren kører kun kode, der er merget til `main`, men som `pi` med sudo. Giv derfor kun skriveadgang til
 > repoet til folk, du stoler på.
 
