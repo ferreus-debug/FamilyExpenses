@@ -92,7 +92,7 @@ FamilyExpenses.sln
 │   └── FamilyExpenses.Web/             # Blazor Web App + MudBlazor (sider, komponenter, DI-opsætning)
 ├── deploy/
 │   ├── familyexpenses.service          # systemd-unit til Raspberry Pi
-│   ├── Caddyfile                       # reverse proxy + HTTPS
+│   ├── cloudflared-config.yml          # eksempel på ingress-regel til Cloudflare Tunnel
 │   └── publish-pi.sh                   # build linux-arm64 + kopiér til Pi
 └── tests/
     ├── FamilyExpenses.Domain.Tests/
@@ -230,15 +230,23 @@ Mobil først, da udgifter typisk registreres på telefonen. UI-tekster på dansk
 
 ## 8a. Drift på Raspberry Pi
 
-- **Krav**: Raspberry Pi 4/5 med 64-bit Raspberry Pi OS (arm64). .NET understøtter ikke 32-bit ARM-OS fremover, så 64-bit er et must.
+- **Hardware**: Raspberry Pi 4 (2 GB RAM eller mere er rigeligt til Blazor Server + SQLite for 3–4 familier).
+- **OS**: 64-bit Raspberry Pi OS (arm64) er påkrævet – tjek med `uname -m`, som skal give `aarch64`.
+  Giver den `armv7l`, skal Pi'en geninstalleres med 64-bit OS (.NET 10 understøtter ikke 32-bit ARM).
+- **SD-kort**: SQLite skriver hyppigt; brug et godt kort (A1/A2) eller helst USB-SSD for holdbarhed.
 - **Build**: `dotnet publish src/FamilyExpenses.Web -c Release -r linux-arm64 --self-contained`
   → ingen .NET-installation nødvendig på Pi'en. `deploy/publish-pi.sh` bygger og kopierer via `rsync`/`scp`.
 - **Kørsel**: systemd-service (`deploy/familyexpenses.service`) med `Restart=always`, egen bruger,
   `ASPNETCORE_URLS=http://127.0.0.1:5000`, data i `/var/lib/familyexpenses/app.db`.
-- **Reverse proxy + HTTPS**: **Caddy** (automatisk Let's Encrypt-certifikat) foran Kestrel. Blazor Server kræver WebSockets – virker ud af boksen i Caddy.
-- **Adgang udefra** (så familierne kan bruge den på telefonen): enten
-  a) port-forward 443 + DynDNS/eget domæne, eller
-  b) **Tailscale**/Cloudflare Tunnel uden åbne porte (anbefales – nemmest og sikrest).
+- **Adgang udefra + HTTPS**: **Cloudflare Tunnel** – samme opsætning som brugerens øvrige apps på Pi'en.
+  - Tilføj en ny ingress-regel i den eksisterende `cloudflared`-konfiguration, fx
+    `udgifter.<domæne>` → `http://localhost:5000`, og opret DNS-record med `cloudflared tunnel route dns`.
+  - Cloudflare terminerer TLS, så der er ingen reverse proxy eller certifikater på Pi'en, og ingen åbne porte i routeren.
+  - WebSockets (krævet af Blazor Server) er slået til som standard i Cloudflare – tjek at det ikke er slået fra på domænet.
+  - Appen konfigureres med `UseForwardedHeaders` (X-Forwarded-Proto/For), så den ved, at den kører bag HTTPS
+    (vigtigt for secure cookies og redirects i Identity).
+  - Valgfrit ekstra lag: **Cloudflare Access** foran domænet (fx e-mail-OTP) oven i appens eget login.
+  - Vælg en ledig port, der ikke kolliderer med de andre apps (5000 er kun et eksempel).
 - **Data Protection-nøgler** persisteres til disk (`PersistKeysToFileSystem`), så logins overlever genstart.
 - **Migrations** køres automatisk ved opstart (`Database.Migrate()`) – acceptabelt for én instans.
 - **Backup**: cron-job med `sqlite3 app.db ".backup ..."` dagligt til USB/NAS.
@@ -266,10 +274,11 @@ Mobil først, da udgifter typisk registreres på telefonen. UI-tekster på dansk
 | 3 | Betaler | En konkret person registreres; afregning sker pr. husstand |
 | 4 | Login | Ja – hver familie har login, brugere tilknyttes en husstand via invitation |
 | 5 | UI-bibliotek | MudBlazor |
-| 6 | Hosting | Brugerens Raspberry Pi (linux-arm64, systemd + Caddy) |
+| 6 | Hosting | Brugerens Raspberry Pi 4 (linux-arm64, systemd) |
+| 7 | Fjernadgang | Cloudflare Tunnel, som de øvrige apps |
 
 ## 11. Resterende åbne spørgsmål
 
-1. Fjernadgang til Pi'en: Tailscale/Cloudflare Tunnel eller port-forward med eget domæne?
-2. Hvilken Pi-model og OS (skal være 64-bit)?
+1. Bekræft at Pi'en kører 64-bit OS (`uname -m` → `aarch64`).
+2. Hvilket (under)domæne skal appen have?
 3. Skal en familie kunne have flere logins (fx begge forældre), eller én fælles konto pr. familie? (Planen understøtter flere.)
