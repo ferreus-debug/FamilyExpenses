@@ -3,9 +3,20 @@
 <MudText Typo="Typo.h6" Class="mb-2">Hvem betaler hvem</MudText>
 @if (Settlement.Transfers.Count == 0)
 {
-    <MudAlert Severity="Severity.Success" Class="mb-6" data-testid="no-transfers">
-        @(Settlement.Total == 0 ? "Der er ingen udgifter endnu." : "Alle har betalt deres andel – ingen skal betale noget.")
-    </MudAlert>
+    <div class="mb-6" data-testid="no-transfers">
+        @if (Settlement.Total == 0)
+        {
+            <EmptyState Image="img/empty-expenses.webp" Title="Der er ingen udgifter endnu">
+                Når der er lagt ud for noget, vises det her, hvem der skal betale hvem.
+            </EmptyState>
+        }
+        else
+        {
+            <EmptyState Image="img/settled.webp" Title="I er kvit!">
+                Alle har betalt deres andel – ingen skal betale noget.
+            </EmptyState>
+        }
+    </div>
 }
 else
 {

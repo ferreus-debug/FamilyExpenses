@@ -10,8 +10,9 @@
     <MudAppBar Elevation="1">
         <MudIconButton Icon="@Icons.Material.Filled.Menu" Color="Color.Inherit" Edge="Edge.Start"
                        OnClick="ToggleDrawer" aria-label="Menu" />
-        <MudLink Href="" Color="Color.Inherit" Underline="Underline.None" Class="ml-2">
-            <MudText Typo="Typo.h6">Fællesudgifter</MudText>
+        <MudLink Href="" Color="Color.Inherit" Underline="Underline.None" Class="ml-2 fe-brand">
+            <img src="img/icon-192.png" alt="" width="32" height="32" />
+            <MudText Typo="Typo.h6">Turkassen</MudText>
         </MudLink>
         <MudSpacer />
         <MudIconButton Icon="@(_isDarkMode ? Icons.Material.Filled.LightMode : Icons.Material.Filled.DarkMode)"
@@ -30,7 +31,11 @@
                 </form>
             </Authorized>
             <NotAuthorized>
-                <MudButton Href="Account/Login" Color="Color.Inherit" StartIcon="@Icons.Material.Filled.Login">Log ind</MudButton>
+                @* Icon only on phones, so the app bar fits next to the name. *@
+                <MudIconButton Href="Account/Login" Color="Color.Inherit" Icon="@Icons.Material.Filled.Login"
+                               Class="d-flex d-sm-none" aria-label="Log ind" />
+                <MudButton Href="Account/Login" Color="Color.Inherit" StartIcon="@Icons.Material.Filled.Login"
+                           Class="d-none d-sm-flex">Log ind</MudButton>
             </NotAuthorized>
         </AuthorizeView>
     </MudAppBar>

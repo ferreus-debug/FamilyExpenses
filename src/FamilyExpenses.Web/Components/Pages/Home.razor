@@ -2,17 +2,26 @@
 @inherits AppComponentBase
 @inject EventService Events
 
-<PageTitle>Fællesudgifter</PageTitle>
+<PageTitle>Turkassen</PageTitle>
 
 <AuthorizeView>
     <NotAuthorized>
-        <MudText Typo="Typo.h4" GutterBottom="true">Fællesudgifter</MudText>
-        <MudText Typo="Typo.body1" Class="mb-4">
-            Registrér fælles udgifter og få beregnet, hvem der skal betale hvad til hvem.
-            Voksne tæller 1, børn tæller 0,5.
-        </MudText>
-        <MudButton Href="Account/Login" Variant="Variant.Filled" Color="Color.Primary"
-                   StartIcon="@Icons.Material.Filled.Login">Log ind</MudButton>
+        <section class="fe-hero">
+            <picture>
+                <source media="(max-width: 720px)" srcset="img/hero-small.webp" />
+                <img src="img/hero.webp" alt="Venner og en familie på roadtrip ved kysten med en campervogn"
+                     width="1344" height="752" class="fe-hero-image" />
+            </picture>
+            <div class="fe-hero-text">
+                <MudText Typo="Typo.h3" Class="fe-hero-title">Del turen – ikke regnestykket</MudText>
+                <MudText Typo="Typo.body1" Class="mb-4">
+                    Skriv udgifterne ind undervejs, så regner Turkassen ud, hvem der skal betale hvem –
+                    med så få overførsler som muligt. Voksne tæller 1, børn 0,5.
+                </MudText>
+                <MudButton Href="Account/Login" Variant="Variant.Filled" Color="Color.Secondary" Size="Size.Large"
+                           StartIcon="@Icons.Material.Filled.Login">Log ind</MudButton>
+            </div>
+        </section>
     </NotAuthorized>
     <Authorized>
         <MudStack Row="true" AlignItems="AlignItems.Center" Justify="Justify.SpaceBetween" Class="mb-4">
@@ -27,9 +36,9 @@
         }
         else if (_events.Count == 0)
         {
-            <MudAlert Severity="Severity.Info">
-                Du er ikke med i nogen begivenheder endnu. Opret en ny, eller brug invitationslinket fra den, der har oprettet jeres.
-            </MudAlert>
+            <EmptyState Image="img/empty-events.webp" Title="Ingen ture endnu">
+                Opret en ny, eller brug invitationslinket fra den, der har oprettet jeres.
+            </EmptyState>
         }
         else
         {
