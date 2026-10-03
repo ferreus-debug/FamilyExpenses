@@ -2,7 +2,7 @@
 
 Appen kører som en selvstændig `linux-arm64`-app (ingen .NET-installation på Pi'en) under systemd og
 nås udefra via **Cloudflare Tunnel** – på samme måde som `budget.mathiasspangsberg.com` og
-`madplan.mathiasspangsberg.com`. Forslag til adresse: **`udgifter.mathiasspangsberg.com`**.
+`madplan.mathiasspangsberg.com`. Adresse: **`turkassen.mathiasspangsberg.com`**.
 
 ```
 Telefon ──https──▶ Cloudflare ──tunnel──▶ cloudflared (Pi) ──http──▶ 127.0.0.1:5080 (appen)
@@ -46,21 +46,21 @@ Tilføj en regel i den **samme tunnel** som budget og madplan. Brug den måde, d
 
 1. dash.cloudflare.com → **Zero Trust** → **Networks** → **Tunnels** → vælg tunnellen, som budget/madplan bruger → **Configure**.
 2. Fanen **Public Hostname** (i nyere UI: **Published application routes**) → **Add a public hostname**.
-3. Subdomain: `udgifter` · Domain: `mathiasspangsberg.com` · Path: tom
+3. Subdomain: `turkassen` · Domain: `mathiasspangsberg.com` · Path: tom
 4. Service: Type **HTTP**, URL **`127.0.0.1:5080`** (brug `127.0.0.1`, ikke `localhost` – appen lytter kun på IPv4).
 5. Gem. DNS-recorden oprettes automatisk.
 
 Se samtidig, hvilke porte budget og madplan bruger i listen – de må ikke være 5080.
 
 **Tunnel styret med `config.yml` på Pi'en:** se [`cloudflared-ingress.example.yml`](cloudflared-ingress.example.yml), og kør derefter
-`cloudflared tunnel route dns <tunnel-navn> udgifter.mathiasspangsberg.com` og `sudo systemctl restart cloudflared`.
+`cloudflared tunnel route dns <tunnel-navn> turkassen.mathiasspangsberg.com` og `sudo systemctl restart cloudflared`.
 
-Tjek bagefter: `https://udgifter.mathiasspangsberg.com/healthz` skal vise `Healthy`.
+Tjek bagefter: `https://turkassen.mathiasspangsberg.com/healthz` skal vise `Healthy`.
 Under SSL/TLS → Edge Certificates bør **Always Use HTTPS** være slået til (som for domænets andre apps).
 
 ## 3. Første bruger
 
-Åbn `https://udgifter.mathiasspangsberg.com/Account/Register` og opret dig. **Den første bruger bliver ejer**.
+Åbn `https://turkassen.mathiasspangsberg.com/Account/Register` og opret dig. **Den første bruger bliver ejer**.
 Derefter kan nye konti kun oprettes via invitationslinks fra appen.
 
 ## Drift
