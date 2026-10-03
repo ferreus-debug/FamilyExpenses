@@ -262,7 +262,7 @@ Mobil først, da udgifter typisk registreres på telefonen. UI-tekster på dansk
 | 3. Application | Services/use cases (begivenhed, husstande, udgifter, afregning, invitationer) + autorisation | Service-tests grønne |
 | 4. UI – basis | MudBlazor-layout, login, invitationsflow, sider for husstande og udgifter | Familier kan logge ind og oprette udgifter |
 | 5. UI – afregning | Afregningsside, overførselsliste, lås begivenhed | Regneeksemplet kan gennemføres i browseren |
-| 6. Raspberry Pi | Publish-script, systemd, Caddy, backup, fjernadgang | Appen kører på Pi'en og kan nås fra telefonen |
+| 6. Raspberry Pi | Publish-script, systemd, Cloudflare Tunnel-regel, backup | Appen kører på Pi'en og kan nås fra telefonen |
 | 7. Polish | Mobil-layout, validering, fejlhåndtering, bUnit-tests | Klar til brug |
 
 ## 10. Beslutninger
