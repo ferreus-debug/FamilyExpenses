@@ -10,11 +10,13 @@ PORT=${2:-5080}
 ROOT=$(cd "$(dirname "$0")/.." && pwd)
 OUT="$ROOT/artifacts/pi"
 REMOTE_DIR=familyexpenses-release
+RELEASE=local-$(date +%Y%m%d-%H%M%S)
 
 echo "==> Bygger til linux-arm64"
 rm -rf "$OUT"
 dotnet publish "$ROOT/src/FamilyExpenses.Web/FamilyExpenses.Web.csproj" \
-    --configuration Release --runtime linux-arm64 --self-contained -o "$OUT" -nologo
+    --configuration Release --runtime linux-arm64 --self-contained -o "$OUT" -nologo \
+    -p:InformationalVersion="$RELEASE" -p:IncludeSourceRevisionInInformationalVersion=false
 
 echo "==> Kopierer til $TARGET:~/$REMOTE_DIR"
 # shellcheck disable=SC2029 # REMOTE_DIR is meant to expand locally
@@ -24,4 +26,4 @@ rsync -az --delete --exclude publish-pi.sh "$ROOT/deploy/" "$TARGET:$REMOTE_DIR/
 
 echo "==> Installerer på Pi'en (beder om sudo-kode)"
 # shellcheck disable=SC2029
-ssh -t "$TARGET" "sudo ~/$REMOTE_DIR/deploy/install-pi.sh $PORT"
+ssh -t "$TARGET" "sudo ~/$REMOTE_DIR/deploy/install-pi.sh $PORT $RELEASE"

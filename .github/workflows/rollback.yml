@@ -1,0 +1,41 @@
+name: Rollback
+
+# One-click rollback from GitHub (web or app): Actions → Rollback → Run workflow.
+# Leave "release" empty to go back to the release before the live one, or give a name
+# (e.g. r12-b9886e9) from the list in the last deploy's summary. Takes seconds – the older build
+# is still on the Pi; this only swaps /opt/familyexpenses/current and restarts. The database is
+# not rolled back.
+on:
+  workflow_dispatch:
+    inputs:
+      release:
+        description: "Release to go back to (empty = the previous one)"
+        required: false
+        default: ""
+
+permissions:
+  contents: read
+
+concurrency:
+  group: deploy-pi
+  cancel-in-progress: false
+
+jobs:
+  rollback:
+    runs-on: [self-hosted, pi, familyexpenses]
+    environment:
+      name: production
+      url: https://turkassen.mathiasspangsberg.com
+    steps:
+      - name: Roll back
+        env:
+          # Passed via env, not interpolated into the script, so the input can't inject shell.
+          TARGET: ${{ inputs.release }}
+        run: |
+          sudo /opt/familyexpenses/bin/rollback.sh ${TARGET:+"$TARGET"}
+          {
+            echo "### Rolled back"
+            echo '```'
+            /opt/familyexpenses/bin/rollback.sh --list
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
