@@ -171,6 +171,104 @@ public sealed class SettlementCalculatorTests
         remaining.Values.ShouldAllBe(balance => balance == Money.Zero);
     }
 
+    [Fact]
+    public void Debts_are_simplified_to_the_fewest_transfers()
+    {
+        // Balances A -600, B -400, C +400, D +300, E +300. Matching largest with largest would need
+        // 4 transfers (A→C, B→D, A→E, B→E); B↔C and A↔(D, E) settle separately with 3.
+        var trip = new ExpenseEvent("Roadtrip");
+        var (a, b, c, d, e) = (Friend(trip, "A"), Friend(trip, "B"), Friend(trip, "C"), Friend(trip, "D"), Friend(trip, "E"));
+        trip.AddExpense("Færge", Kr(400), Today, c.Id, [b.Id], UserId);
+        trip.AddExpense("Hotel", Kr(300), Today, d.Id, [a.Id], UserId);
+        trip.AddExpense("Middag", Kr(300), Today, e.Id, [a.Id], UserId);
+
+        var transfers = trip.CalculateSettlement().Transfers;
+
+        transfers.Select(t => (t.FromName, t.ToName, t.Amount)).ShouldBe(
+        [
+            ("B", "C", Kr(400)),
+            ("A", "D", Kr(300)),
+            ("A", "E", Kr(300)),
+        ], ignoreOrder: true);
+    }
+
+    [Theory]
+    [InlineData(1)]
+    [InlineData(7)]
+    [InlineData(42)]
+    [InlineData(2026)]
+    public void Trip_with_many_friends_uses_the_minimum_number_of_transfers(int seed)
+    {
+        // Four separate groups of three: one friend owes the two others. Each group needs exactly two
+        // transfers and no fewer are possible, so the minimum for the trip is 8.
+        var random = new Random(seed);
+        var trip = new ExpenseEvent("Interrail");
+        for (var group = 0; group < 4; group++)
+        {
+            var owes = Friend(trip, $"Skylder {group}");
+            for (var creditor = 0; creditor < 2; creditor++)
+            {
+                var payer = Friend(trip, $"Lægger ud {group}.{creditor}");
+                trip.AddExpense($"Udgift {group}.{creditor}", Money.FromMinorUnits(random.Next(1, 500_000)), Today, payer.Id, [owes.Id], UserId);
+            }
+        }
+
+        var settlement = trip.CalculateSettlement();
+
+        settlement.Transfers.Count.ShouldBe(8);
+        var remaining = settlement.Balances.ToDictionary(b => b.HouseholdId, b => b.Balance);
+        foreach (var transfer in settlement.Transfers)
+        {
+            remaining[transfer.FromHouseholdId] += transfer.Amount;
+            remaining[transfer.ToHouseholdId] -= transfer.Amount;
+        }
+
+        remaining.Values.ShouldAllBe(balance => balance == Money.Zero);
+    }
+
+    [Theory]
+    [InlineData(3)]
+    [InlineData(99)]
+    public void Largest_trip_still_balances_out(int seed)
+    {
+        var random = new Random(seed);
+        var trip = new ExpenseEvent("Stor tur");
+        for (var i = 0; i < ExpenseEvent.MaxFamilies; i++)
+        {
+            var family = trip.AddFamily($"Familie {i}");
+            for (var p = 0; p <= random.Next(3); p++)
+            {
+                trip.AddParticipant(family.Id, $"Person {i}.{p}", random.Next(4) == 0 ? ParticipantType.Child : ParticipantType.Adult);
+            }
+        }
+
+        trip.SetExtraPerson("Ekstra", ParticipantType.Adult);
+        var people = trip.Participants.ToList();
+        for (var i = 0; i < 40; i++)
+        {
+            var sharedWith = people.Where(_ => random.Next(2) == 0).Select(p => p.Id).ToList();
+            var payer = people[random.Next(people.Count)];
+            trip.AddExpense($"Udgift {i}", Money.FromMinorUnits(random.Next(1, 500_000)), Today, payer.Id,
+                sharedWith.Count > 0 ? sharedWith : [payer.Id], UserId);
+        }
+
+        var settlement = trip.CalculateSettlement();
+
+        settlement.Transfers.Count.ShouldBeLessThanOrEqualTo(settlement.Balances.Count(b => b.Balance != Money.Zero) - 1);
+        var remaining = settlement.Balances.ToDictionary(b => b.HouseholdId, b => b.Balance);
+        foreach (var transfer in settlement.Transfers)
+        {
+            remaining[transfer.FromHouseholdId] += transfer.Amount;
+            remaining[transfer.ToHouseholdId] -= transfer.Amount;
+        }
+
+        remaining.Values.ShouldAllBe(balance => balance == Money.Zero);
+    }
+
+    // A friend travelling alone: a household with one adult.
+    private static Participant Friend(ExpenseEvent trip, string name) =>
+        trip.AddParticipant(trip.AddFamily(name).Id, name, ParticipantType.Adult);
+
     private static HouseholdBalance Balance(Settlement settlement, Household household) =>
         settlement.Balances.Single(b => b.HouseholdId == household.Id);
 

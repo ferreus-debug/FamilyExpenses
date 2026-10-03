@@ -9,7 +9,8 @@ namespace FamilyExpenses.Domain.Events;
 /// </summary>
 public sealed class ExpenseEvent
 {
-    public const int MaxFamilies = 3;
+    /// <summary>Enough for a trip with friends (a friend travelling alone is a household of one adult).</summary>
+    public const int MaxFamilies = 12;
 
     private readonly List<Household> _households = [];
     private readonly List<Expense> _expenses = [];

@@ -9,6 +9,9 @@
 }
 else
 {
+    <MudText Typo="Typo.body2" Color="Color.Secondary" Class="mb-3" data-testid="simplified-debts">
+        Gælden er forenklet: kun hver husstands samlede saldo tæller, så I laver så få overførsler som muligt.
+    </MudText>
     <MudStack Spacing="2" Class="mb-6">
         @foreach (var t in Settlement.Transfers)
         {
