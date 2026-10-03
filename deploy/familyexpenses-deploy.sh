@@ -1,8 +1,7 @@
 #!/usr/bin/env bash
-# Entry point the GitHub Actions runner on the Pi may run with sudo (installed by setup-runner.sh
-# as /usr/local/sbin/familyexpenses-deploy). Copies a release folder (app/ + deploy/) to a
-# root-owned staging folder and installs it from there:
-#   sudo familyexpenses-deploy /path/to/release [port]
+# Run by the Deploy workflow on the Pi's runner. Copies a release folder (app/ + deploy/) out of
+# the runner's work folder to a root-owned staging folder and installs it from there:
+#   sudo deploy/familyexpenses-deploy.sh /path/to/release [port]
 set -euo pipefail
 
 SOURCE=${1:?"Brug: familyexpenses-deploy /sti/til/release [port]"}

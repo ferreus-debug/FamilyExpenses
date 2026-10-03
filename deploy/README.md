@@ -5,7 +5,7 @@ nås udefra via **Cloudflare Tunnel** – på samme måde som `budget.mathiasspa
 `madplan.mathiasspangsberg.com`. Adresse: **`turkassen.mathiasspangsberg.com`**.
 
 ```
-Telefon ──https──▶ Cloudflare ──tunnel──▶ cloudflared (Pi) ──http──▶ 127.0.0.1:5080 (appen)
+Telefon ──https──▶ Cloudflare ──tunnel──▶ cloudflared (Pi) ──http──▶ nginx :80 ──▶ 127.0.0.1:5080 (appen)
 ```
 
 ## Krav
@@ -38,25 +38,34 @@ Kør samme kommando igen for hver ny version. Databasen og indstillingerne bevar
 > på Pi'en som `~/familyexpenses-release/app`, kopiér `deploy/` til `~/familyexpenses-release/deploy`
 > og kør `sudo ~/familyexpenses-release/deploy/install-pi.sh`.
 
-## 2. Cloudflare Tunnel
+## 2. Cloudflare Tunnel og nginx
 
-Tilføj en regel i den **samme tunnel** som budget og madplan. Brug den måde, de andre apps er sat op på:
+Som de andre apps på Pi'en (budget, madplan, wowanalyser …): tunnellen `homeassistent` sender alle
+hostnavne til **nginx på port 80**, og nginx vælger appen ud fra `server_name`.
 
-**Tunnel styret fra Cloudflare-dashboardet** (oftest):
+- **nginx:** `install-pi.sh` installerer [`nginx-familyexpenses.conf`](nginx-familyexpenses.conf) som
+  `/etc/nginx/sites-enabled/familyexpenses` og kører `systemctl reload nginx` (ingen afbrydelse).
+  Uden den blok viser adressen CampingLog, som ligger først i `sites-enabled`.
+- **DNS:** en proxied CNAME `turkassen` → `e3513b09-569f-4514-9c9c-53b5c8537817.cfargotunnel.com`
+  (vises som type *Tunnel*). Er oprettet.
+- **Tunnel-regel:** tunnellen er **lokalt styret** – dashboardet tilbyder kun at migrere den, så tryk
+  ikke på det. Reglerne ligger i `/home/ferreus/.cloudflared/config.yml` (ejet af `ferreus`, kun læsbar
+  med sudo). Tag en backup, tilføj reglen over den sidste `http_status:404`, valider og genstart:
 
-1. dash.cloudflare.com → **Zero Trust** → **Networks** → **Tunnels** → vælg tunnellen, som budget/madplan bruger → **Configure**.
-2. Fanen **Public Hostname** (i nyere UI: **Published application routes**) → **Add a public hostname**.
-3. Subdomain: `turkassen` · Domain: `mathiasspangsberg.com` · Path: tom
-4. Service: Type **HTTP**, URL **`127.0.0.1:5080`** (brug `127.0.0.1`, ikke `localhost` – appen lytter kun på IPv4).
-5. Gem. DNS-recorden oprettes automatisk.
+  ```yaml
+    - hostname: turkassen.mathiasspangsberg.com
+      service: http://localhost:80
+  ```
 
-Se samtidig, hvilke porte budget og madplan bruger i listen – de må ikke være 5080.
+  ```bash
+  sudo cp /home/ferreus/.cloudflared/config.yml /home/ferreus/.cloudflared/config.yml.bak-$(date +%Y%m%d-%H%M%S)
+  sudo cloudflared tunnel --config /home/ferreus/.cloudflared/config.yml ingress validate
+  sudo systemctl restart cloudflared
+  ```
 
-**Tunnel styret med `config.yml` på Pi'en:** se [`cloudflared-ingress.example.yml`](cloudflared-ingress.example.yml), og kør derefter
-`cloudflared tunnel route dns <tunnel-navn> turkassen.mathiasspangsberg.com` og `sudo systemctl restart cloudflared`.
+  En genstart af cloudflared afbryder kortvarigt **alle** hostnavne på tunnellen, også Home Assistant.
 
 Tjek bagefter: `https://turkassen.mathiasspangsberg.com/healthz` skal vise `Healthy`.
-Under SSL/TLS → Edge Certificates bør **Always Use HTTPS** være slået til (som for domænets andre apps).
 
 ## 3. Første bruger
 
@@ -66,27 +75,30 @@ Derefter kan nye konti kun oprettes via invitationslinks fra appen.
 ## 4. Automatisk deploy
 
 Når en pull request merges til `main`, kører CI. Er bygget grønt, installerer workflowet
-[`deploy.yml`](../.github/workflows/deploy.yml) den samme `linux-arm64`-build på Pi'en. Det sker gennem en
-GitHub Actions-runner, der kører på Pi'en og selv forbinder ud til GitHub, så intet nyt eksponeres.
-Pull requests deployes aldrig, og `main` er beskyttet: ændringer skal ind via en pull request med grøn CI.
+[`deploy.yml`](../.github/workflows/deploy.yml) den samme `linux-arm64`-build på Pi'en gennem en
+GitHub Actions-runner på Pi'en (labels `pi, familyexpenses`), ligesom wowanalyser. Runneren forbinder selv
+ud til GitHub, så intet nyt eksponeres. Pull requests deployes aldrig, og `main` er beskyttet: ændringer
+skal ind via en pull request med grøn CI.
 
-Opsætning (én gang) – på Pi'en, fra en kopi af repoet:
+Opsætning af runneren (én gang, og igen hvis den står som *Offline* på GitHub) – fra din egen maskine:
 
-1. GitHub → repoet → **Settings** → **Actions** → **Runners** → **New self-hosted runner**, og kopiér tokenet
-   fra `config.sh`-linjen (gælder i 1 time).
-2. `sudo deploy/setup-runner.sh <token>`
+```bash
+gh api -X POST repos/ferreus-debug/FamilyExpenses/actions/runners/registration-token --jq .token
+```
 
-Scriptet opretter brugeren `github-runner`, installerer runneren som systemd-tjeneste (label `familyexpenses`)
-og giver den lov til at køre præcis ét script med sudo: `/usr/local/sbin/familyexpenses-deploy`.
-Bruger appen en anden port end 5080, så sæt repo-variablen `PI_PORT` (Settings → Secrets and variables →
-Actions → Variables).
+```bash
+scp deploy/setup-runner.sh pi@192.168.68.53:/tmp/ && ssh pi@192.168.68.53 "bash /tmp/setup-runner.sh <token>"
+```
+
+Runneren ligger i `~/actions-runner-familyexpenses` og kører som `pi`. Bruger appen en anden port end 5080,
+så sæt repo-variablen `PI_PORT` (Settings → Secrets and variables → Actions → Variables).
 
 Deploys kan følges under **Actions** → **Deploy**, og miljøet **production** viser, hvilken commit der kører.
 Svarer appen ikke på `/healthz` efter installationen, fejler deployet – se `journalctl -u familyexpenses -n 50`
 og ret fejlen med en ny pull request (eller revert den seneste).
 
-> Runneren kører kun kode, der er merget til `main`, men den kan installere hvad som helst som root via
-> deploy-scriptet. Giv derfor kun skriveadgang til repoet til folk, du stoler på.
+> Runneren kører kun kode, der er merget til `main`, men som `pi` med sudo. Giv derfor kun skriveadgang til
+> repoet til folk, du stoler på.
 
 ## Drift
 
@@ -112,8 +124,9 @@ så de overlever et dødt SD-kort.
 
 ## Fejlfinding
 
-- **502 / "Bad gateway" fra Cloudflare:** appen kører ikke, eller tunnel-reglen peger på en forkert port.
-  Tjek `curl http://127.0.0.1:5080/healthz` på Pi'en.
-- **Login virker ikke / man bliver logget ud:** tjek at tunnelen sender `X-Forwarded-Proto` (det gør cloudflared som standard).
-  Kører cloudflared i Docker, så sæt `ReverseProxy__KnownNetworks__0=172.17.0.0/16` i env-filen.
+- **502 / "Bad gateway":** appen kører ikke. Tjek `curl http://127.0.0.1:5080/healthz` på Pi'en.
+- **Adressen viser en anden app (fx CampingLog):** nginx-blokken mangler – kør deployet igen, eller tjek
+  `ls /etc/nginx/sites-enabled`.
+- **Login virker ikke / man bliver logget ud:** nginx skal sende cloudflareds `X-Forwarded-Proto: https` videre
+  (det gør `nginx-familyexpenses.conf`), ikke `$scheme`.
 - **Invitationslinks starter med `http://`:** samme årsag som ovenfor.
