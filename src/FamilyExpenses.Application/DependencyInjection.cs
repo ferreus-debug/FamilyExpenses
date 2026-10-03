@@ -16,6 +16,7 @@ public static class DependencyInjection
         services.AddScoped<EventService>();
         services.AddScoped<HouseholdService>();
         services.AddScoped<ExpenseService>();
+        services.AddScoped<ExpensePictureService>();
         services.AddScoped<SettlementService>();
         services.AddScoped<InvitationService>();
         return services;

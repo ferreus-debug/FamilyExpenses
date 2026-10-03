@@ -12,6 +12,8 @@ public interface IUnitOfWork : IAsyncDisposable
 
     IInvitationRepository Invitations { get; }
 
+    IExpensePictureRepository Pictures { get; }
+
     Task SaveChangesAsync(CancellationToken cancellationToken = default);
 }
 

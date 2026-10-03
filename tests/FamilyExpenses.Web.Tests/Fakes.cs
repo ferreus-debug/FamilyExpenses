@@ -22,13 +22,15 @@ internal sealed class EmptyUnitOfWorkFactory : IUnitOfWorkFactory
 {
     public IUnitOfWork Create() => new EmptyUnitOfWork();
 
-    private sealed class EmptyUnitOfWork : IUnitOfWork, IExpenseEventRepository, IEventMemberRepository, IInvitationRepository
+    private sealed class EmptyUnitOfWork : IUnitOfWork, IExpenseEventRepository, IEventMemberRepository, IInvitationRepository, IExpensePictureRepository
     {
         public IExpenseEventRepository Events => this;
 
         public IEventMemberRepository Members => this;
 
         public IInvitationRepository Invitations => this;
+
+        public IExpensePictureRepository Pictures => this;
 
         public Task SaveChangesAsync(CancellationToken cancellationToken = default) => Task.CompletedTask;
 
@@ -71,5 +73,23 @@ internal sealed class EmptyUnitOfWorkFactory : IUnitOfWorkFactory
         void IInvitationRepository.Add(Invitation invitation)
         {
         }
+
+        Task<IReadOnlyDictionary<Guid, IReadOnlyList<Guid>>> IExpensePictureRepository.ListIdsByExpenseAsync(Guid eventId, CancellationToken cancellationToken) =>
+            Task.FromResult<IReadOnlyDictionary<Guid, IReadOnlyList<Guid>>>(new Dictionary<Guid, IReadOnlyList<Guid>>());
+
+        Task<int> IExpensePictureRepository.CountForExpenseAsync(Guid expenseId, CancellationToken cancellationToken) =>
+            Task.FromResult(0);
+
+        Task<PictureOwner?> IExpensePictureRepository.GetOwnerAsync(Guid pictureId, CancellationToken cancellationToken) =>
+            Task.FromResult<PictureOwner?>(null);
+
+        Task<PictureContent?> IExpensePictureRepository.GetContentAsync(Guid pictureId, bool thumbnail, CancellationToken cancellationToken) =>
+            Task.FromResult<PictureContent?>(null);
+
+        void IExpensePictureRepository.Add(ExpensePicture picture)
+        {
+        }
+
+        Task IExpensePictureRepository.DeleteAsync(Guid pictureId, CancellationToken cancellationToken) => Task.CompletedTask;
     }
 }
