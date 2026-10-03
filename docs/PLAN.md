@@ -114,7 +114,7 @@ public sealed class ExpenseEvent     // aggregate root ("Event" er et reserveret
     IReadOnlyList<Household> Households;
     IReadOnlyList<Expense> Expenses;
 
-    Household AddFamily(string name);                             // max 3 familier
+    Household AddFamily(string name);                             // max 12 familier (oprindeligt 3)
     Household SetExtraPerson(string name, ParticipantType type);  // max 1, voksen eller barn; erstatter eksisterende
     void RemoveExtraPerson();                                     // kun hvis personen ikke indgår i udgifter
     Expense AddExpense(...);                                      // validerer beløb > 0, betaler og deltagere findes osv.
@@ -187,9 +187,13 @@ Derefter pr. husstand:
 - `saldo = betalt − andel` (positiv = skal have penge, negativ = skal betale).
 - Afregningssiden kan desuden vise betalt pr. person (informativt), men overførsler sker mellem husstande.
 
-Overførsler (minimer antal):
-- Grådig algoritme: match største skyldner med største kreditor, overfør `min(|gæld|, tilgodehavende)`, gentag.
-  Giver højst `husstande − 1` overførsler (her max 3).
+Overførsler (minimer antal – "simplify debts" som i Splitwise):
+- Kun hver husstands nettosaldo tæller. En gruppe på k husstande, hvis saldi summer til 0, kan altid afregnes
+  med k − 1 overførsler, så minimum er `husstande med saldo − flest mulige nul-sum-grupper`.
+- Grupperne findes eksakt med en bitmaske-DP (op til 16 husstande med saldo; grænsen er 12 familier + 1 ekstra
+  person). Hver gruppe afregnes grådigt: match største skyldner med største kreditor, overfør
+  `min(|gæld|, tilgodehavende)`, gentag.
+- (Opdateret 3. okt. 2026: grænsen er hævet fra 3 til 12 familier, så appen også passer til venneture.)
 
 ### Regneeksempel
 

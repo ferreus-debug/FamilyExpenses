@@ -1,6 +1,6 @@
 # FamilyExpenses
 
-Udgiftsdeling for tre familier (+ en ekstra person), bygget i C# og Blazor.
+Udgiftsdeling for familier og venner på tur (op til 12 familier/husstande + en ekstra person), bygget i C# og Blazor.
 Voksne tæller 1 og børn 0,5, når udgifterne afregnes. Se [docs/PLAN.md](docs/PLAN.md) for den fulde plan.
 
 ## Kom i gang

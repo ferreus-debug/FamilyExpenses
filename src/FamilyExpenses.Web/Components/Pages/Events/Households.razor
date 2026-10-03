@@ -30,7 +30,7 @@ else
     @if (Details.Households.Count == 0)
     {
         <MudAlert Severity="Severity.Info">
-            @(Details.IsAdmin ? "Start med at tilføje de tre familier og deres voksne og børn." : "Administratoren har ikke tilføjet nogen familier endnu.")
+            @(Details.IsAdmin ? "Start med at tilføje familierne og deres voksne og børn. En ven, der rejser alene, tilføjes som en familie med én voksen." : "Administratoren har ikke tilføjet nogen familier endnu.")
         </MudAlert>
     }
 
@@ -127,7 +127,7 @@ else
     private async Task AddFamilyAsync()
     {
         var dialog = await Dialogs.ShowAsync<NameDialog>("Tilføj familie",
-            new DialogParameters<NameDialog> { { d => d.Label, "Familiens navn, fx \"Familien Hansen\"" }, { d => d.SubmitText, "Tilføj" } });
+            new DialogParameters<NameDialog> { { d => d.Label, "Familiens navn, fx \"Familien Hansen\" – eller vennens navn, hvis vedkommende rejser alene" }, { d => d.SubmitText, "Tilføj" } });
         if (await dialog.Result is { Canceled: false, Data: string name }
             && await RunAsync(() => HouseholdService.AddFamilyAsync(EventId, name), $"{name} er tilføjet."))
         {
