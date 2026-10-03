@@ -70,6 +70,16 @@ public sealed class HostingTests : IAsyncLifetime
     }
 
     [Fact]
+    public async Task Pictures_require_login()
+    {
+        var response = await _client.GetAsync(new Uri($"/pictures/{Guid.NewGuid()}", UriKind.Relative));
+
+        // Sent to the login page, never the picture.
+        response.StatusCode.ShouldBe(HttpStatusCode.Redirect);
+        response.Headers.Location!.OriginalString.ShouldContain("/Account/Login");
+    }
+
+    [Fact]
     public async Task Requests_through_the_tunnel_are_treated_as_https()
     {
         using var request = new HttpRequestMessage(HttpMethod.Get, "/Account/Login");

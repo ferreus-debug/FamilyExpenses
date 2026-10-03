@@ -20,6 +20,8 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options)
 
     public DbSet<Invitation> Invitations => Set<Invitation>();
 
+    public DbSet<ExpensePicture> ExpensePictures => Set<ExpensePicture>();
+
     public DbSet<DataProtectionKey> DataProtectionKeys => Set<DataProtectionKey>();
 
     protected override void OnModelCreating(ModelBuilder builder)

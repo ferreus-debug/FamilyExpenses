@@ -1,0 +1,27 @@
+@* Shows an expense's pictures full width; tap one to open it on its own (zoomable on a phone). *@
+<MudDialog>
+    <DialogContent>
+        <MudStack Spacing="3" data-testid="pictures-dialog">
+            @foreach (var id in PictureIds)
+            {
+                <a href="@($"pictures/{id}")" target="_blank" rel="noopener">
+                    <img src="@($"pictures/{id}")" alt="@Description" class="fe-picture-full" loading="lazy" />
+                </a>
+            }
+        </MudStack>
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="() => Dialog.Close()">Luk</MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter]
+    private IMudDialogInstance Dialog { get; set; } = default!;
+
+    [Parameter, EditorRequired]
+    public IReadOnlyList<Guid> PictureIds { get; set; } = [];
+
+    [Parameter]
+    public string Description { get; set; } = string.Empty;
+}

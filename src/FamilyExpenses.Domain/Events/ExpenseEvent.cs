@@ -206,6 +206,30 @@ public sealed class ExpenseEvent
         _expenses.Remove(GetExpense(expenseId));
     }
 
+    // ---- Pictures ---------------------------------------------------------------------------
+
+    /// <param name="existingPictures">How many pictures the expense already has.</param>
+    public ExpensePicture CreatePicture(
+        Guid expenseId,
+        int existingPictures,
+        byte[] image,
+        byte[] thumbnail,
+        string createdByUserId,
+        DateTimeOffset createdAt)
+    {
+        EnsureOpen();
+        var expense = GetExpense(expenseId);
+        if (existingPictures >= ExpensePicture.MaxPerExpense)
+        {
+            throw new DomainException($"En udgift kan højst have {ExpensePicture.MaxPerExpense} billeder.");
+        }
+
+        return new ExpensePicture(Id, expense.Id, image, thumbnail, createdByUserId, createdAt);
+    }
+
+    /// <summary>Pictures can't be removed from a settled event either.</summary>
+    public void EnsurePicturesCanChange() => EnsureOpen();
+
     // ---- Settlement -------------------------------------------------------------------------
 
     public Settlement CalculateSettlement() => SettlementCalculator.Calculate(this);

@@ -97,7 +97,7 @@ public sealed class ExpenseFormModelTests
     public void Editing_starts_from_the_existing_expense()
     {
         var expense = new ExpenseDto(
-            Guid.NewGuid(), "Restaurant", 300m, Today.AddDays(-1), Bo.Id, "Bo", "Familie B", [Bo.Id], "Bo", "Bo", true);
+            Guid.NewGuid(), "Restaurant", 300m, Today.AddDays(-1), Bo.Id, "Bo", "Familie B", [Bo.Id], "Bo", "Bo", true, []);
 
         var model = ExpenseFormModel.ForEdit([A, B], expense);
 
@@ -109,6 +109,46 @@ public sealed class ExpenseFormModelTests
         model.IsSelected(Anna.Id).ShouldBeFalse();
         model.HouseholdState(A).ShouldBe(false);
     }
+
+    [Fact]
+    public void Editing_keeps_saved_pictures_and_tracks_removed_and_new_ones()
+    {
+        Guid[] saved = [Guid.NewGuid(), Guid.NewGuid()];
+        var expense = new ExpenseDto(
+            Guid.NewGuid(), "Is", 50m, Today, Bo.Id, "Bo", "Familie B", [Bo.Id], "Bo", "Bo", true, saved);
+        var model = ExpenseFormModel.ForEdit([A, B], expense);
+        var receipt = Picture();
+
+        model.RemovePicture(saved[0]);
+        model.AddPicture(receipt);
+
+        model.KeptPictureIds.ShouldBe([saved[1]]);
+        model.RemovedPictureIds.ShouldBe([saved[0]]);
+        model.NewPictures.ShouldBe([receipt]);
+        model.PictureCount.ShouldBe(2);
+
+        model.RemovePicture(receipt);
+        model.NewPictures.ShouldBeEmpty();
+    }
+
+    [Fact]
+    public void No_more_than_five_pictures_can_be_added()
+    {
+        var model = NewModel();
+        for (var i = 0; i < ExpensePicture.MaxPerExpense + 2; i++)
+        {
+            model.AddPicture(Picture());
+        }
+
+        model.PictureCount.ShouldBe(ExpensePicture.MaxPerExpense);
+        model.CanAddPicture.ShouldBeFalse();
+    }
+
+    [Fact]
+    public void New_picture_preview_is_the_thumbnail_as_a_data_url() =>
+        new NewPicture([0xFF, 0xD8, 0xFF], [1, 2, 3]).PreviewUrl.ShouldBe("data:image/jpeg;base64,AQID");
+
+    private static NewPicture Picture() => new([0xFF, 0xD8, 0xFF, 1], [0xFF, 0xD8, 0xFF, 2]);
 
     private sealed class InputComparer : IEqualityComparer<ExpenseInput>
     {

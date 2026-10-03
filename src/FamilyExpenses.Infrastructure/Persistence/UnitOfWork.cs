@@ -12,6 +12,8 @@ internal sealed class UnitOfWork(AppDbContext db) : IUnitOfWork
 
     public IInvitationRepository Invitations { get; } = new InvitationRepository(db);
 
+    public IExpensePictureRepository Pictures { get; } = new ExpensePictureRepository(db);
+
     public Task SaveChangesAsync(CancellationToken cancellationToken = default) => db.SaveChangesAsync(cancellationToken);
 
     public ValueTask DisposeAsync() => db.DisposeAsync();

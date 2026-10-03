@@ -105,7 +105,7 @@ internal sealed class AppHarness : IAsyncDisposable
         await Db.DisposeAsync();
     }
 
-    private T Get<T>()
+    public T Get<T>()
         where T : notnull => _scope.ServiceProvider.GetRequiredService<T>();
 }
 
