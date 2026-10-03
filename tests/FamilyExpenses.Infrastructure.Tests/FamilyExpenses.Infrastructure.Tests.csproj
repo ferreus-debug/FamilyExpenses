@@ -1,5 +1,9 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
+  <PropertyGroup>
+    <UseSharedTestDatabase>true</UseSharedTestDatabase>
+  </PropertyGroup>
+
   <ItemGroup>
     <ProjectReference Include="..\..\src\FamilyExpenses.Infrastructure\FamilyExpenses.Infrastructure.csproj" />
   </ItemGroup>

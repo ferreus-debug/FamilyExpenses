@@ -205,6 +205,27 @@ Overførsler:
 
 Dette eksempel bliver den første acceptance-test.
 
+### Application services og adgangsregler (fase 3)
+
+| Service | Funktioner |
+|---------|------------|
+| `EventService` | opret (opretter bliver admin), mine begivenheder, detaljer, omdøb, afregn/genåbn, slet, admin vælger egen husstand |
+| `HouseholdService` | familier, ekstra person, deltagere |
+| `ExpenseService` | liste (med "deles mellem"-opsummering og `CanEdit`), opret, ret, slet |
+| `SettlementService` | saldi, betalt pr. person, overførsler |
+| `InvitationService` | opret link, liste med status, forhåndsvisning uden login, accepter |
+
+| Handling | Admin | Familiemedlem | Andre |
+|----------|:-----:|:-------------:|:-----:|
+| Se begivenhed, udgifter, afregning | ✔ | ✔ | – (ser "findes ikke") |
+| Opret udgift (også på andres vegne) | ✔ | ✔ | – |
+| Ret/slet udgift | alle | egne | – |
+| Deltagere i egen familie | ✔ | ✔ | – |
+| Familier, ekstra person, invitationer, afregn, slet | ✔ | – | – |
+
+Reglerne tjekkes ét sted (`EventAccess`) ved hvert service-kald. Webben leverer den indloggede bruger via
+`ICurrentUser` (en `CircuitHandler` holder brugeren opdateret i Blazor-circuits).
+
 ## 7. UI / sider
 
 | Route | Indhold |

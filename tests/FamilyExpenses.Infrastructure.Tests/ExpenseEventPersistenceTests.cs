@@ -1,7 +1,7 @@
 using FamilyExpenses.Domain.Access;
 using FamilyExpenses.Domain.Common;
 using FamilyExpenses.Domain.Events;
-using FamilyExpenses.Infrastructure.Identity;
+using FamilyExpenses.Tests.Shared;
 using Microsoft.EntityFrameworkCore;
 
 namespace FamilyExpenses.Infrastructure.Tests;
@@ -248,12 +248,5 @@ public sealed class ExpenseEventPersistenceTests : IAsyncLifetime
         return (await uow.Events.GetAsync(id)).ShouldNotBeNull();
     }
 
-    private async Task<string> AddUserAsync(string email)
-    {
-        await using var context = _db.CreateContext();
-        var user = new AppUser { UserName = email, Email = email, DisplayName = email };
-        context.Users.Add(user);
-        await context.SaveChangesAsync();
-        return user.Id;
-    }
+    private Task<string> AddUserAsync(string email) => _db.AddUserAsync(email.Split('@')[0]);
 }

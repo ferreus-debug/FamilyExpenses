@@ -22,7 +22,7 @@ public static class DependencyInjection
         // The factory also registers AppDbContext as scoped, which Identity and Data Protection use.
         services.AddDbContextFactory<AppDbContext>(options => options.UseSqlite(connectionString));
         services.AddSingleton<IUnitOfWorkFactory, UnitOfWorkFactory>();
-        services.AddSingleton(TimeProvider.System);
+        services.AddSingleton<IUserDirectory, UserDirectory>();
 
         // Cookie login (pages come in phase 4). SignInManager depends on these schemes.
         services.AddAuthentication(options =>

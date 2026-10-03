@@ -1,6 +1,7 @@
 using FamilyExpenses.Domain.Common;
 using FamilyExpenses.Domain.Events;
 using FamilyExpenses.Infrastructure.Identity;
+using FamilyExpenses.Tests.Shared;
 using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.Extensions.DependencyInjection;
