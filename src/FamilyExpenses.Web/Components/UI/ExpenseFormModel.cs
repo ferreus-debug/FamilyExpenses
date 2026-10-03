@@ -1,5 +1,6 @@
 using FamilyExpenses.Application.Events;
 using FamilyExpenses.Application.Expenses;
+using FamilyExpenses.Domain.Events;
 
 namespace FamilyExpenses.Web.Components.UI;
 
@@ -10,6 +11,9 @@ namespace FamilyExpenses.Web.Components.UI;
 public sealed class ExpenseFormModel
 {
     private readonly HashSet<Guid> _selected;
+    private readonly List<Guid> _existingPictureIds = [];
+    private readonly HashSet<Guid> _removedPictureIds = [];
+    private readonly List<NewPicture> _newPictures = [];
 
     public ExpenseFormModel(IReadOnlyList<HouseholdDto> households, DateOnly today, Guid? defaultPayerId)
     {
@@ -39,6 +43,32 @@ public sealed class ExpenseFormModel
     /// <summary>Total weight of the selected people, e.g. 7,5.</summary>
     public decimal SelectedWeight => AllParticipants.Where(p => _selected.Contains(p.Id)).Sum(p => p.Weight);
 
+    /// <summary>Pictures already saved on the expense that stay.</summary>
+    public IEnumerable<Guid> KeptPictureIds => _existingPictureIds.Where(id => !_removedPictureIds.Contains(id));
+
+    /// <summary>Saved pictures the user removed in the form; deleted when the form is saved.</summary>
+    public IReadOnlyCollection<Guid> RemovedPictureIds => _removedPictureIds;
+
+    /// <summary>Pictures picked in the form; uploaded when the form is saved.</summary>
+    public IReadOnlyList<NewPicture> NewPictures => _newPictures;
+
+    public int PictureCount => KeptPictureIds.Count() + _newPictures.Count;
+
+    public bool CanAddPicture => PictureCount < ExpensePicture.MaxPerExpense;
+
+    public void AddPicture(NewPicture picture)
+    {
+        ArgumentNullException.ThrowIfNull(picture);
+        if (CanAddPicture)
+        {
+            _newPictures.Add(picture);
+        }
+    }
+
+    public void RemovePicture(Guid savedPictureId) => _removedPictureIds.Add(savedPictureId);
+
+    public void RemovePicture(NewPicture picture) => _newPictures.Remove(picture);
+
     public static ExpenseFormModel ForEdit(IReadOnlyList<HouseholdDto> households, ExpenseDto expense)
     {
         ArgumentNullException.ThrowIfNull(expense);
@@ -49,6 +79,7 @@ public sealed class ExpenseFormModel
         };
         model._selected.Clear();
         model._selected.UnionWith(expense.SharedWithParticipantIds);
+        model._existingPictureIds.AddRange(expense.PictureIds);
         return model;
     }
 
@@ -134,4 +165,10 @@ public sealed class ExpenseFormModel
         DateOnly.FromDateTime(Date!.Value),
         PaidByParticipantId!.Value,
         [.. AllParticipants.Where(p => _selected.Contains(p.Id)).Select(p => p.Id)]);
+}
+
+/// <summary>A picture picked in the form, already shrunk to JPEG by the browser.</summary>
+public sealed record NewPicture(byte[] Image, byte[] Thumbnail)
+{
+    public string PreviewUrl { get; } = "data:image/jpeg;base64," + Convert.ToBase64String(Thumbnail);
 }

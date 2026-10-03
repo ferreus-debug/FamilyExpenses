@@ -16,6 +16,7 @@ public sealed class ExpenseService(IUnitOfWorkFactory uowFactory, ICurrentUser c
         var names = await users.GetDisplayNamesAsync(
             expenseEvent.Expenses.Select(e => e.CreatedByUserId).Distinct(),
             cancellationToken);
+        var pictures = await uow.Pictures.ListIdsByExpenseAsync(eventId, cancellationToken);
 
         return
         [
@@ -36,7 +37,8 @@ public sealed class ExpenseService(IUnitOfWorkFactory uowFactory, ICurrentUser c
                         e.SharedWithParticipantIds,
                         DescribeSharedWith(expenseEvent, e),
                         names.GetValueOrDefault(e.CreatedByUserId, "Ukendt"),
-                        EventAccess.CanEdit(member, e));
+                        EventAccess.CanEdit(member, e),
+                        pictures.GetValueOrDefault(e.Id, []));
                 }),
         ];
     }

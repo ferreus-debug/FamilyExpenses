@@ -90,3 +90,23 @@ internal sealed class ExpenseConfiguration : IEntityTypeConfiguration<Expense>
             .UsePropertyAccessMode(PropertyAccessMode.Field);
     }
 }
+
+internal sealed class ExpensePictureConfiguration : IEntityTypeConfiguration<ExpensePicture>
+{
+    public void Configure(EntityTypeBuilder<ExpensePicture> builder)
+    {
+        builder.ToTable("ExpensePictures");
+        builder.HasKey(p => p.Id);
+        builder.Property(p => p.Id).ValueGeneratedNever();
+        builder.Property(p => p.Image).IsRequired();
+        builder.Property(p => p.Thumbnail).IsRequired();
+        builder.Property(p => p.CreatedByUserId).HasMaxLength(450).IsRequired();
+
+        // Deleting an expense (or the whole event) deletes its pictures in the database.
+        builder.HasOne<Expense>()
+            .WithMany()
+            .HasForeignKey(p => p.ExpenseId)
+            .OnDelete(DeleteBehavior.Cascade);
+        builder.HasIndex(p => p.EventId);
+    }
+}

@@ -6,6 +6,7 @@ using FamilyExpenses.Web.Components;
 using FamilyExpenses.Web.Components.Account;
 using FamilyExpenses.Web.Hosting;
 using FamilyExpenses.Web.Identity;
+using FamilyExpenses.Web.Pictures;
 using Microsoft.AspNetCore.Components.Authorization;
 using Microsoft.AspNetCore.Components.Server.Circuits;
 using Microsoft.Extensions.DependencyInjection.Extensions;
@@ -74,6 +75,7 @@ app.MapStaticAssets();
 app.MapRazorComponents<App>()
     .AddInteractiveServerRenderMode();
 app.MapAccountEndpoints();
+app.MapPictureEndpoints();
 app.MapHealthChecks("/healthz");
 // Release name stamped in by CI (r<run>-<sha>); the deploy checks it to know the new build is the one answering.
 app.MapGet("/version", () => AppVersion.Current);

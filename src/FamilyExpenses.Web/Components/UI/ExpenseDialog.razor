@@ -60,6 +60,48 @@
                 }
             </div>
 
+            <div>
+                <MudText Typo="Typo.subtitle2">Billeder</MudText>
+                <MudText Typo="Typo.caption" Color="Color.Secondary">
+                    Fx kvitteringen. Højst @ExpensePicture.MaxPerExpense billeder.
+                </MudText>
+                <div class="fe-pictures mt-2" data-testid="expense-pictures">
+                    @foreach (var id in Model.KeptPictureIds)
+                    {
+                        <div class="fe-picture">
+                            <img src="@($"pictures/{id}?thumb=true")" alt="Billede" />
+                            <MudIconButton Class="fe-picture-remove" Size="Size.Small" Icon="@Icons.Material.Filled.Close"
+                                           OnClick="() => Model.RemovePicture(id)" aria-label="Fjern billede" />
+                        </div>
+                    }
+                    @foreach (var picture in Model.NewPictures)
+                    {
+                        <div class="fe-picture">
+                            <img src="@picture.PreviewUrl" alt="Nyt billede" />
+                            <MudIconButton Class="fe-picture-remove" Size="Size.Small" Icon="@Icons.Material.Filled.Close"
+                                           OnClick="() => Model.RemovePicture(picture)" aria-label="Fjern billede" />
+                        </div>
+                    }
+                    @if (_readingPictures)
+                    {
+                        <div class="fe-picture fe-picture-add"><MudProgressCircular Indeterminate="true" Size="Size.Small" /></div>
+                    }
+                    else if (Model.CanAddPicture)
+                    {
+                        @* No capture attribute: phones offer both the camera and the photo library. *@
+                        <label class="fe-picture fe-picture-add">
+                            <MudIcon Icon="@Icons.Material.Filled.AddAPhoto" />
+                            <span>Tilføj</span>
+                            <InputFile OnChange="AddPicturesAsync" accept="image/*" multiple hidden />
+                        </label>
+                    }
+                </div>
+                @if (_pictureError is not null)
+                {
+                    <MudAlert Severity="Severity.Warning" Dense="true" Class="mt-2">@_pictureError</MudAlert>
+                }
+            </div>
+
             @foreach (var error in _errors)
             {
                 <MudAlert Severity="Severity.Warning" Dense="true">@error</MudAlert>
@@ -68,7 +110,7 @@
     </DialogContent>
     <DialogActions>
         <MudButton OnClick="() => Dialog.Cancel()">Annullér</MudButton>
-        <MudButton Color="Color.Primary" Variant="Variant.Filled" OnClick="Submit">Gem</MudButton>
+        <MudButton Color="Color.Primary" Variant="Variant.Filled" OnClick="Submit" Disabled="_readingPictures">Gem</MudButton>
     </DialogActions>
 </MudDialog>
 
@@ -82,6 +124,8 @@
     public ExpenseFormModel Model { get; set; } = default!;
 
     private IReadOnlyList<string> _errors = [];
+    private bool _readingPictures;
+    private string? _pictureError;
 
     private string PayerName(Guid? id) =>
         Model.Households.SelectMany(h => h.Participants.Select(p => (p, h)))
@@ -94,7 +138,56 @@
         _errors = Model.Validate();
         if (_errors.Count == 0)
         {
-            Dialog.Close(DialogResult.Ok(Model.ToInput()));
+            Dialog.Close(DialogResult.Ok(Model));
         }
+    }
+
+    private async Task AddPicturesAsync(InputFileChangeEventArgs e)
+    {
+        _readingPictures = true;
+        _pictureError = null;
+        var failed = 0;
+        try
+        {
+            foreach (var file in e.GetMultipleFiles(ExpensePicture.MaxPerExpense))
+            {
+                if (!Model.CanAddPicture)
+                {
+                    break;
+                }
+
+                try
+                {
+                    Model.AddPicture(new NewPicture(
+                        await ReadJpegAsync(file, 1600, ExpensePicture.MaxImageBytes),
+                        await ReadJpegAsync(file, 320, ExpensePicture.MaxThumbnailBytes)));
+                }
+                catch (Exception ex) when (ex is IOException or InvalidOperationException or JSException)
+                {
+                    failed++;
+                }
+            }
+        }
+        finally
+        {
+            _readingPictures = false;
+        }
+
+        if (failed > 0)
+        {
+            _pictureError = failed == 1 ? "Et billede kunne ikke læses." : $"{failed} billeder kunne ikke læses.";
+        }
+    }
+
+    // The browser shrinks and re-encodes the photo (canvas → JPEG) before it is sent: a phone photo of
+    // several MB becomes a few hundred KB, and the location data (EXIF) is dropped on the way.
+    private static async Task<byte[]> ReadJpegAsync(IBrowserFile file, int maxSide, long maxBytes)
+    {
+        var resized = await file.RequestImageFileAsync(ExpensePicture.ContentType, maxSide, maxSide);
+        await using var stream = resized.OpenReadStream(maxBytes);
+        using var buffer = new MemoryStream();
+        await stream.CopyToAsync(buffer);
+        var bytes = buffer.ToArray();
+        return ExpensePicture.IsJpeg(bytes) ? bytes : throw new InvalidOperationException("The browser did not produce a JPEG.");
     }
 }

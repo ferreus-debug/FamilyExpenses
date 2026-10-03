@@ -2,6 +2,7 @@
 @attribute [Authorize]
 @inherits EventPageBase
 @inject ExpenseService ExpenseService
+@inject ExpensePictureService PictureService
 @inject TimeProvider Time
 
 <PageTitle>Udgifter · @(Details?.Name)</PageTitle>
@@ -43,6 +44,14 @@ else
             <MudTd DataLabel="Dato">@Format.Date(context.Date)</MudTd>
             <MudTd DataLabel="Beskrivelse">
                 @context.Description
+                @if (context.PictureIds.Count > 0)
+                {
+                    <MudButton Size="Size.Small" Variant="Variant.Text" Color="Color.Primary" Class="ml-1"
+                               StartIcon="@Icons.Material.Filled.PhotoCamera" OnClick="() => ShowPicturesAsync(context)"
+                               aria-label="@($"Vis billeder af {context.Description}")" data-testid="show-pictures">
+                        @context.PictureIds.Count
+                    </MudButton>
+                }
                 <MudText Typo="Typo.caption" Color="Color.Secondary" Class="d-block">af @context.CreatedByName</MudText>
             </MudTd>
             <MudTd DataLabel="Beløb" Style="text-align:right">@Format.Money(context.Amount)</MudTd>
@@ -86,8 +95,8 @@ else
         var today = DateOnly.FromDateTime(Time.GetLocalNow().DateTime);
         var myself = await GuessMyselfAsync();
         var model = new ExpenseFormModel(Details!.Households, today, myself);
-        var input = await ShowDialogAsync("Tilføj udgift", model);
-        if (input is not null && await RunAsync(() => ExpenseService.AddAsync(EventId, input), "Udgiften er gemt."))
+        if (await ShowDialogAsync("Tilføj udgift", model)
+            && await RunAsync(async () => await SavePicturesAsync(await ExpenseService.AddAsync(EventId, model.ToInput()), model), "Udgiften er gemt."))
         {
             await ReloadAsync();
         }
@@ -95,12 +104,37 @@ else
 
     private async Task EditAsync(ExpenseDto expense)
     {
-        var input = await ShowDialogAsync("Ret udgift", ExpenseFormModel.ForEdit(Details!.Households, expense));
-        if (input is not null && await RunAsync(() => ExpenseService.UpdateAsync(EventId, expense.Id, input), "Udgiften er opdateret."))
+        var model = ExpenseFormModel.ForEdit(Details!.Households, expense);
+        if (await ShowDialogAsync("Ret udgift", model)
+            && await RunAsync(async () =>
+            {
+                await ExpenseService.UpdateAsync(EventId, expense.Id, model.ToInput());
+                await SavePicturesAsync(expense.Id, model);
+            }, "Udgiften er opdateret."))
         {
             await ReloadAsync();
         }
     }
+
+    // Pictures are saved one by one after the expense itself, so a failing picture never loses the expense.
+    private async Task SavePicturesAsync(Guid expenseId, ExpenseFormModel model)
+    {
+        foreach (var pictureId in model.RemovedPictureIds)
+        {
+            await PictureService.RemoveAsync(EventId, pictureId);
+        }
+
+        foreach (var picture in model.NewPictures)
+        {
+            await PictureService.AddAsync(EventId, expenseId, picture.Image, picture.Thumbnail);
+        }
+    }
+
+    private async Task ShowPicturesAsync(ExpenseDto expense) =>
+        await Dialogs.ShowAsync<PicturesDialog>(
+            expense.Description,
+            new DialogParameters<PicturesDialog> { { d => d.PictureIds, expense.PictureIds }, { d => d.Description, expense.Description } },
+            new DialogOptions { MaxWidth = MaxWidth.Medium, FullWidth = true, CloseOnEscapeKey = true, CloseButton = true });
 
     private async Task RemoveAsync(ExpenseDto expense)
     {
@@ -125,12 +159,13 @@ else
             ?? myHousehold.Participants.FirstOrDefault())?.Id;
     }
 
-    private async Task<ExpenseInput?> ShowDialogAsync(string title, ExpenseFormModel model)
+    /// <summary>True when the user saved; the form's values are then in <paramref name="model"/>.</summary>
+    private async Task<bool> ShowDialogAsync(string title, ExpenseFormModel model)
     {
         var dialog = await Dialogs.ShowAsync<ExpenseDialog>(
             title,
             new DialogParameters<ExpenseDialog> { { d => d.Model, model } },
             new DialogOptions { MaxWidth = MaxWidth.Small, FullWidth = true, CloseOnEscapeKey = true });
-        return await dialog.Result is { Canceled: false, Data: ExpenseInput input } ? input : null;
+        return await dialog.Result is { Canceled: false };
     }
 }

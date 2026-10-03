@@ -166,7 +166,8 @@ sudo -u familyexpenses sh -c 'cd /var/lib/familyexpenses && rm -f familyexpenses
 sudo systemctl start familyexpenses
 ```
 
-Backups ligger som standard på SD-kortet. Sæt `BACKUP_DIR` i env-filen til fx en USB-disk eller NAS,
+Billeder på udgifter ligger i databasen (typisk 200–500 KB pr. billede), så de er med i backuppen og fylder i
+den. Backups ligger som standard på SD-kortet. Sæt `BACKUP_DIR` i env-filen til fx en USB-disk eller NAS,
 så de overlever et dødt SD-kort.
 
 ## Fejlfinding
