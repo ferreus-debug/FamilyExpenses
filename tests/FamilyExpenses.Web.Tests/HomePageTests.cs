@@ -25,8 +25,9 @@ public sealed class HomePageTests : MudTestContext
     {
         var cut = Render<Home>();
 
-        cut.Find("h4").TextContent.ShouldBe("Fællesudgifter");
-        cut.Markup.ShouldContain("børn tæller 0,5");
+        cut.Find("h3").TextContent.ShouldBe("Del turen – ikke regnestykket");
+        cut.Markup.ShouldContain("børn 0,5");
+        cut.Find("img.fe-hero-image").GetAttribute("alt").ShouldNotBeNullOrWhiteSpace();
         cut.Find("a[href='Account/Login']").TextContent.ShouldContain("Log ind");
     }
 
@@ -37,7 +38,7 @@ public sealed class HomePageTests : MudTestContext
 
         var cut = Render<Home>();
 
-        cut.WaitForAssertion(() => cut.Markup.ShouldContain("Du er ikke med i nogen begivenheder endnu"));
+        cut.WaitForAssertion(() => cut.Markup.ShouldContain("Ingen ture endnu"));
         cut.Markup.ShouldContain("Ny begivenhed");
     }
 }

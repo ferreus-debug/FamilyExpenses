@@ -1,0 +1,17 @@
+@* A friendly illustration with a short message, for pages that have nothing to show yet. *@
+<div class="fe-empty" data-testid="empty-state">
+    <img src="@Image" alt="" width="280" height="211" loading="lazy" />
+    <MudText Typo="Typo.h6">@Title</MudText>
+    <MudText Typo="Typo.body2" Color="Color.Secondary">@ChildContent</MudText>
+</div>
+
+@code {
+    [Parameter, EditorRequired]
+    public string Image { get; set; } = string.Empty;
+
+    [Parameter, EditorRequired]
+    public string Title { get; set; } = string.Empty;
+
+    [Parameter]
+    public RenderFragment? ChildContent { get; set; }
+}

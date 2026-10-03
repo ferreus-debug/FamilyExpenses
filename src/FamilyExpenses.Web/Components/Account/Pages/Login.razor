@@ -3,7 +3,9 @@
 <PageTitle>Log ind</PageTitle>
 
 <div class="account-page">
-    <MudPaper Class="pa-6" Elevation="2">
+    <MudPaper Class="fe-account-card" Elevation="2">
+        <img src="img/hero-small.webp" alt="Venner på roadtrip" class="fe-account-image" />
+        <div class="pa-6">
         <MudText Typo="Typo.h5" GutterBottom="true">Log ind</MudText>
 
         @if (ErrorMessage is not null)
@@ -16,6 +18,7 @@
         <MudText Typo="Typo.body2" Class="mt-4">
             Ny her? Åbn det invitationslink, du har fået, for at komme med.
         </MudText>
+        </div>
     </MudPaper>
 </div>
 

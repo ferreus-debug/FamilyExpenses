@@ -6,7 +6,9 @@
 <PageTitle>Kom med</PageTitle>
 
 <div class="account-page">
-    <MudPaper Class="pa-6" Elevation="2">
+    <MudPaper Class="fe-account-card" Elevation="2">
+        <img src="img/invite.webp" alt="En invitation flyver ud af en kuvert" class="fe-account-image" />
+        <div class="pa-6">
         <MudText Typo="Typo.h5" GutterBottom="true">Kom med</MudText>
 
         @if (!_allowed)
@@ -39,6 +41,7 @@
 
             <GoogleSignInForm Invite="@InviteToken" />
         }
+        </div>
     </MudPaper>
 </div>
 

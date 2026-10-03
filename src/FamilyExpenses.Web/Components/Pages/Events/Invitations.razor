@@ -66,7 +66,9 @@ else
                 <MudTd DataLabel="Udløber">@context.ExpiresAt.ToLocalTime().ToString("d. MMM yyyy")</MudTd>
             </RowTemplate>
             <NoRecordsContent>
-                <MudText Color="Color.Secondary">Ingen links endnu.</MudText>
+                <EmptyState Image="img/invite.webp" Title="Ingen links endnu">
+                    Opret et link til hver husstand og send det til dem – så kan de selv komme med.
+                </EmptyState>
             </NoRecordsContent>
         </MudTable>
     }

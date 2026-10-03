@@ -5,7 +5,9 @@
 <PageTitle>Invitation</PageTitle>
 
 <div class="account-page">
-    <MudPaper Class="pa-6" Elevation="2">
+    <MudPaper Class="fe-account-card" Elevation="2">
+        <img src="img/invite.webp" alt="En invitation flyver ud af en kuvert" class="fe-account-image" />
+        <div class="pa-6">
         @if (_loading)
         {
             <MudProgressLinear Indeterminate="true" Color="Color.Primary" />
@@ -36,6 +38,7 @@
                 </NotAuthorized>
             </AuthorizeView>
         }
+        </div>
     </MudPaper>
 </div>
 

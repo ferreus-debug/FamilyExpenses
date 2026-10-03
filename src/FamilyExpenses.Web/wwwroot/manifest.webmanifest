@@ -1,0 +1,14 @@
+{
+  "name": "Turkassen",
+  "short_name": "Turkassen",
+  "description": "Del udgifterne på turen – og se hvem der skal betale hvem.",
+  "lang": "da",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#FBF7F0",
+  "theme_color": "#0F766E",
+  "icons": [
+    { "src": "img/icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "img/icon-512.png", "sizes": "512x512", "type": "image/png" }
+  ]
+}

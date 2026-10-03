@@ -59,7 +59,9 @@ else
             </MudTd>
         </RowTemplate>
         <NoRecordsContent>
-            <MudText Color="Color.Secondary">Ingen udgifter endnu.</MudText>
+            <EmptyState Image="img/empty-expenses.webp" Title="Ingen udgifter endnu">
+                Tryk "Tilføj udgift", når nogen har lagt ud – fx for indkøb, benzin eller sommerhuset.
+            </EmptyState>
         </NoRecordsContent>
     </MudTable>
 }
