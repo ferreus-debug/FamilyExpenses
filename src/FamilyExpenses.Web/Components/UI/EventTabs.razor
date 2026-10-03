@@ -1,0 +1,36 @@
+@* Navigation between the pages of one event. *@
+<MudPaper Class="d-flex flex-wrap gap-1 pa-1 mb-4" Elevation="0" Outlined="true">
+    @foreach (var tab in Tabs)
+    {
+        <MudButton Href="@tab.Href"
+                   Variant="@(tab.Key == Active ? Variant.Filled : Variant.Text)"
+                   Color="Color.Primary"
+                   StartIcon="@tab.Icon"
+                   Size="Size.Small">@tab.Title</MudButton>
+    }
+</MudPaper>
+
+@code {
+    [Parameter, EditorRequired]
+    public Guid EventId { get; set; }
+
+    [Parameter, EditorRequired]
+    public string Active { get; set; } = "";
+
+    [Parameter]
+    public bool IsAdmin { get; set; }
+
+    private IEnumerable<(string Key, string Title, string Href, string Icon)> Tabs
+    {
+        get
+        {
+            yield return ("overview", "Oversigt", $"events/{EventId}", Icons.Material.Filled.Dashboard);
+            yield return ("expenses", "Udgifter", $"events/{EventId}/expenses", Icons.Material.Filled.Receipt);
+            yield return ("households", "Husstande", $"events/{EventId}/households", Icons.Material.Filled.People);
+            if (IsAdmin)
+            {
+                yield return ("invitations", "Invitationer", $"events/{EventId}/invitations", Icons.Material.Filled.Link);
+            }
+        }
+    }
+}

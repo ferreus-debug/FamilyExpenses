@@ -1,0 +1,212 @@
+@page "/events/{EventId:guid}/households"
+@attribute [Authorize]
+@inherits EventPageBase
+@inject HouseholdService HouseholdService
+
+<PageTitle>Husstande · @(Details?.Name)</PageTitle>
+
+@if (Details is null)
+{
+    <MudProgressLinear Indeterminate="true" Color="Color.Primary" />
+}
+else
+{
+    <MudText Typo="Typo.h4" Class="mb-2">@Details.Name</MudText>
+    <EventTabs EventId="EventId" Active="households" IsAdmin="Details.IsAdmin" />
+
+    <MudStack Row="true" Spacing="2" Class="mb-4" Wrap="Wrap.Wrap">
+        @if (Details.CanAddFamily)
+        {
+            <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.GroupAdd"
+                       OnClick="AddFamilyAsync">Tilføj familie (@Details.Families.Count()/@Details.MaxFamilies)</MudButton>
+        }
+        @if (Details.IsAdmin && !Details.IsSettled && Details.ExtraPerson is null)
+        {
+            <MudButton Variant="Variant.Outlined" Color="Color.Primary" StartIcon="@Icons.Material.Filled.PersonAdd"
+                       OnClick="SetExtraPersonAsync">Tilføj ekstra person</MudButton>
+        }
+    </MudStack>
+
+    @if (Details.Households.Count == 0)
+    {
+        <MudAlert Severity="Severity.Info">
+            @(Details.IsAdmin ? "Start med at tilføje de tre familier og deres voksne og børn." : "Administratoren har ikke tilføjet nogen familier endnu.")
+        </MudAlert>
+    }
+
+    <MudGrid>
+        @foreach (var h in Details.Households)
+        {
+            var canEdit = Details.CanEditHousehold(h.Id);
+            var isExtra = h.Kind == HouseholdKind.ExtraPerson;
+            <MudItem xs="12" sm="6" xl="3">
+                <MudCard Elevation="2" Class="@(h.Id == Details.MyHouseholdId ? "mud-border-primary border-2 border-solid" : "")">
+                    <MudCardHeader>
+                        <CardHeaderAvatar>
+                            <MudAvatar Color="@(isExtra ? Color.Secondary : Color.Primary)">
+                                <MudIcon Icon="@(isExtra ? Icons.Material.Filled.Person : Icons.Material.Filled.People)" />
+                            </MudAvatar>
+                        </CardHeaderAvatar>
+                        <CardHeaderContent>
+                            <MudText Typo="Typo.h6">@h.Name</MudText>
+                            <MudText Typo="Typo.body2" Color="Color.Secondary">
+                                @(isExtra ? "Ekstra person" : "Familie") · vægt @Format.Weight(h.Weight)
+                            </MudText>
+                        </CardHeaderContent>
+                        <CardHeaderActions>
+                            @if (Details.IsAdmin && !Details.IsSettled)
+                            {
+                                <MudMenu Icon="@Icons.Material.Filled.MoreVert" AriaLabel="Flere handlinger">
+                                    @if (isExtra)
+                                    {
+                                        <MudMenuItem OnClick="SetExtraPersonAsync">Ret ekstra person</MudMenuItem>
+                                        <MudMenuItem OnClick="RemoveExtraPersonAsync">Fjern ekstra person</MudMenuItem>
+                                    }
+                                    else
+                                    {
+                                        <MudMenuItem OnClick="() => RenameAsync(h)">Omdøb</MudMenuItem>
+                                        <MudMenuItem OnClick="() => RemoveFamilyAsync(h)">Fjern familie</MudMenuItem>
+                                    }
+                                </MudMenu>
+                            }
+                            else if (canEdit && !isExtra)
+                            {
+                                <MudIconButton Icon="@Icons.Material.Filled.Edit" OnClick="() => RenameAsync(h)" aria-label="Omdøb" />
+                            }
+                        </CardHeaderActions>
+                    </MudCardHeader>
+                    <MudCardContent Class="pt-0">
+                        <MudList T="string" Dense="true">
+                            @foreach (var p in h.Participants)
+                            {
+                                <MudListItem T="string">
+                                    <MudStack Row="true" AlignItems="AlignItems.Center" Justify="Justify.SpaceBetween">
+                                        <span>@p.Name</span>
+                                        <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="0">
+                                            <MudChip T="string" Size="Size.Small" Variant="Variant.Outlined"
+                                                     Color="@(p.Type == ParticipantType.Adult ? Color.Primary : Color.Tertiary)">
+                                                @Format.Type(p.Type)
+                                            </MudChip>
+                                            @if (canEdit && !isExtra)
+                                            {
+                                                <MudIconButton Size="Size.Small" Icon="@Icons.Material.Filled.Edit"
+                                                               OnClick="() => EditParticipantAsync(p)" aria-label="@($"Ret {p.Name}")" />
+                                                <MudIconButton Size="Size.Small" Icon="@Icons.Material.Filled.Close"
+                                                               OnClick="() => RemoveParticipantAsync(p)" aria-label="@($"Fjern {p.Name}")" />
+                                            }
+                                        </MudStack>
+                                    </MudStack>
+                                </MudListItem>
+                            }
+                        </MudList>
+                        @if (h.Participants.Count == 0)
+                        {
+                            <MudText Typo="Typo.body2" Color="Color.Secondary">Ingen personer endnu.</MudText>
+                        }
+                        @if (h.MemberNames.Count > 0)
+                        {
+                            <MudText Typo="Typo.caption" Color="Color.Secondary" Class="mt-2 d-block">
+                                Logget ind: @string.Join(", ", h.MemberNames)
+                            </MudText>
+                        }
+                    </MudCardContent>
+                    @if (canEdit && !isExtra)
+                    {
+                        <MudCardActions>
+                            <MudButton StartIcon="@Icons.Material.Filled.PersonAdd" Color="Color.Primary"
+                                       OnClick="() => AddParticipantAsync(h)">Tilføj person</MudButton>
+                        </MudCardActions>
+                    }
+                </MudCard>
+            </MudItem>
+        }
+    </MudGrid>
+}
+
+@code {
+    private async Task AddFamilyAsync()
+    {
+        var dialog = await Dialogs.ShowAsync<NameDialog>("Tilføj familie",
+            new DialogParameters<NameDialog> { { d => d.Label, "Familiens navn, fx \"Familien Hansen\"" }, { d => d.SubmitText, "Tilføj" } });
+        if (await dialog.Result is { Canceled: false, Data: string name }
+            && await RunAsync(() => HouseholdService.AddFamilyAsync(EventId, name), $"{name} er tilføjet."))
+        {
+            await ReloadAsync();
+        }
+    }
+
+    private async Task RenameAsync(HouseholdDto household)
+    {
+        var dialog = await Dialogs.ShowAsync<NameDialog>("Omdøb familie",
+            new DialogParameters<NameDialog> { { d => d.Value, household.Name } });
+        if (await dialog.Result is { Canceled: false, Data: string name }
+            && await RunAsync(() => HouseholdService.RenameHouseholdAsync(EventId, household.Id, name)))
+        {
+            await ReloadAsync();
+        }
+    }
+
+    private async Task RemoveFamilyAsync(HouseholdDto household)
+    {
+        if (await ConfirmAsync("Fjern familie", $"Vil du fjerne {household.Name}?", "Fjern") == true
+            && await RunAsync(() => HouseholdService.RemoveFamilyAsync(EventId, household.Id), $"{household.Name} er fjernet."))
+        {
+            await ReloadAsync();
+        }
+    }
+
+    private async Task SetExtraPersonAsync()
+    {
+        var current = Details!.ExtraPerson?.Participants.FirstOrDefault();
+        var dialog = await Dialogs.ShowAsync<ParticipantDialog>(current is null ? "Tilføj ekstra person" : "Ret ekstra person",
+            new DialogParameters<ParticipantDialog>
+            {
+                { d => d.Name, current?.Name },
+                { d => d.Type, current?.Type ?? ParticipantType.Adult },
+            });
+        if (await dialog.Result is { Canceled: false, Data: ParticipantDialogResult r }
+            && await RunAsync(() => HouseholdService.SetExtraPersonAsync(EventId, r.Name, r.Type)))
+        {
+            await ReloadAsync();
+        }
+    }
+
+    private async Task RemoveExtraPersonAsync()
+    {
+        if (await ConfirmAsync("Fjern ekstra person", $"Vil du fjerne {Details!.ExtraPerson?.Name}?", "Fjern") == true
+            && await RunAsync(() => HouseholdService.RemoveExtraPersonAsync(EventId), "Den ekstra person er fjernet."))
+        {
+            await ReloadAsync();
+        }
+    }
+
+    private async Task AddParticipantAsync(HouseholdDto household)
+    {
+        var dialog = await Dialogs.ShowAsync<ParticipantDialog>($"Tilføj person til {household.Name}");
+        if (await dialog.Result is { Canceled: false, Data: ParticipantDialogResult r }
+            && await RunAsync(() => HouseholdService.AddParticipantAsync(EventId, household.Id, r.Name, r.Type)))
+        {
+            await ReloadAsync();
+        }
+    }
+
+    private async Task EditParticipantAsync(ParticipantDto participant)
+    {
+        var dialog = await Dialogs.ShowAsync<ParticipantDialog>($"Ret {participant.Name}",
+            new DialogParameters<ParticipantDialog> { { d => d.Name, participant.Name }, { d => d.Type, participant.Type } });
+        if (await dialog.Result is { Canceled: false, Data: ParticipantDialogResult r }
+            && await RunAsync(() => HouseholdService.UpdateParticipantAsync(EventId, participant.Id, r.Name, r.Type)))
+        {
+            await ReloadAsync();
+        }
+    }
+
+    private async Task RemoveParticipantAsync(ParticipantDto participant)
+    {
+        if (await ConfirmAsync("Fjern person", $"Vil du fjerne {participant.Name}?", "Fjern") == true
+            && await RunAsync(() => HouseholdService.RemoveParticipantAsync(EventId, participant.Id)))
+        {
+            await ReloadAsync();
+        }
+    }
+}

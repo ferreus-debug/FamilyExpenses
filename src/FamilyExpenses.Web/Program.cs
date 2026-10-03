@@ -3,7 +3,9 @@ using FamilyExpenses.Application;
 using FamilyExpenses.Application.Abstractions;
 using FamilyExpenses.Infrastructure;
 using FamilyExpenses.Web.Components;
+using FamilyExpenses.Web.Components.Account;
 using FamilyExpenses.Web.Identity;
+using Microsoft.AspNetCore.Components.Authorization;
 using Microsoft.AspNetCore.Components.Server.Circuits;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using MudBlazor.Services;
@@ -15,6 +17,9 @@ builder.Services.AddRazorComponents()
 builder.Services.AddMudServices();
 
 builder.Services.AddCascadingAuthenticationState();
+builder.Services.AddAuthorization();
+builder.Services.AddScoped<AuthenticationStateProvider, IdentityRevalidatingAuthenticationStateProvider>();
+builder.Services.AddScoped<RegistrationPolicy>();
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddScoped<CurrentUser>();
 builder.Services.AddScoped<ICurrentUser>(sp => sp.GetRequiredService<CurrentUser>());
@@ -51,5 +56,6 @@ app.UseAntiforgery();
 app.MapStaticAssets();
 app.MapRazorComponents<App>()
     .AddInteractiveServerRenderMode();
+app.MapAccountEndpoints();
 
 await app.RunAsync();

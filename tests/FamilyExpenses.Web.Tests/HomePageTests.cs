@@ -1,23 +1,46 @@
 using Bunit;
+using Bunit.TestDoubles;
+using FamilyExpenses.Application.Abstractions;
+using FamilyExpenses.Application.Events;
 using FamilyExpenses.Web.Components.Pages;
+using Microsoft.Extensions.DependencyInjection;
 using MudBlazor.Services;
 
 namespace FamilyExpenses.Web.Tests;
 
 public sealed class HomePageTests : BunitContext
 {
+    private readonly BunitAuthorizationContext _auth;
+
     public HomePageTests()
     {
         Services.AddMudServices();
         JSInterop.Mode = JSRuntimeMode.Loose;
+        _auth = AddAuthorization();
+        Services.AddSingleton<IUnitOfWorkFactory>(new EmptyUnitOfWorkFactory());
+        Services.AddSingleton<ICurrentUser>(new StaticCurrentUser("anna"));
+        Services.AddSingleton<IUserDirectory>(new EmptyUserDirectory());
+        Services.AddScoped<EventService>();
     }
 
     [Fact]
-    public void Renders_title_and_weighting_rule()
+    public void Anonymous_visitor_sees_intro_and_login()
     {
         var cut = Render<Home>();
 
         cut.Find("h4").TextContent.ShouldBe("Fællesudgifter");
         cut.Markup.ShouldContain("børn tæller 0,5");
+        cut.Find("a[href='Account/Login']").TextContent.ShouldContain("Log ind");
+    }
+
+    [Fact]
+    public void Logged_in_user_without_events_is_told_how_to_start()
+    {
+        _auth.SetAuthorized("Anna");
+
+        var cut = Render<Home>();
+
+        cut.WaitForAssertion(() => cut.Markup.ShouldContain("Du er ikke med i nogen begivenheder endnu"));
+        cut.Markup.ShouldContain("Ny begivenhed");
     }
 }

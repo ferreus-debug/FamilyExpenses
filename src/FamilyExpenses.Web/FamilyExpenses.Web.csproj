@@ -13,4 +13,8 @@
     <PackageReference Include="MudBlazor" />
   </ItemGroup>
 
+  <ItemGroup>
+    <InternalsVisibleTo Include="FamilyExpenses.Web.Tests" />
+  </ItemGroup>
+
 </Project>

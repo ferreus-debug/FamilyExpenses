@@ -1,4 +1,5 @@
 @inherits LayoutComponentBase
+@inject NavigationManager Navigation
 
 <MudThemeProvider Theme="AppTheme.Default" @bind-IsDarkMode="_isDarkMode" />
 <MudPopoverProvider />
@@ -9,11 +10,29 @@
     <MudAppBar Elevation="1">
         <MudIconButton Icon="@Icons.Material.Filled.Menu" Color="Color.Inherit" Edge="Edge.Start"
                        OnClick="ToggleDrawer" aria-label="Menu" />
-        <MudText Typo="Typo.h6" Class="ml-2">Fællesudgifter</MudText>
+        <MudLink Href="" Color="Color.Inherit" Underline="Underline.None" Class="ml-2">
+            <MudText Typo="Typo.h6">Fællesudgifter</MudText>
+        </MudLink>
         <MudSpacer />
         <MudIconButton Icon="@(_isDarkMode ? Icons.Material.Filled.LightMode : Icons.Material.Filled.DarkMode)"
                        Color="Color.Inherit" OnClick="() => _isDarkMode = !_isDarkMode"
                        aria-label="Skift lyst/mørkt tema" />
+        <AuthorizeView>
+            <Authorized>
+                <MudText Typo="Typo.body2" Class="mx-2 d-none d-sm-flex">@context.User.FindFirst("DisplayName")?.Value</MudText>
+                <form action="Account/Logout" method="post">
+                    <AntiforgeryToken />
+                    <input type="hidden" name="returnUrl" value="" />
+                    <button type="submit" class="fe-appbar-button" title="Log ud">
+                        <MudIcon Icon="@Icons.Material.Filled.Logout" />
+                        <span class="d-none d-sm-flex">Log ud</span>
+                    </button>
+                </form>
+            </Authorized>
+            <NotAuthorized>
+                <MudButton Href="Account/Login" Color="Color.Inherit" StartIcon="@Icons.Material.Filled.Login">Log ind</MudButton>
+            </NotAuthorized>
+        </AuthorizeView>
     </MudAppBar>
     <MudDrawer @bind-Open="_drawerOpen" ClipMode="DrawerClipMode.Always" Elevation="1"
                Variant="DrawerVariant.Responsive">

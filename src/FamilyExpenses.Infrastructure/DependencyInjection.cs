@@ -42,6 +42,7 @@ public static class DependencyInjection
                 options.Lockout.MaxFailedAccessAttempts = 10;
             })
             .AddEntityFrameworkStores<AppDbContext>()
+            .AddClaimsPrincipalFactory<AppUserClaimsPrincipalFactory>()
             .AddSignInManager()
             .AddDefaultTokenProviders();
 

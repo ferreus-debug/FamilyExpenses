@@ -1,0 +1,78 @@
+@page "/Account/Login"
+@inject SignInManager<AppUser> SignInManager
+@inject NavigationManager Navigation
+
+<PageTitle>Log ind</PageTitle>
+
+<div class="account-page">
+    <MudPaper Class="pa-6" Elevation="2">
+        <MudText Typo="Typo.h5" GutterBottom="true">Log ind</MudText>
+
+        @if (_error is not null)
+        {
+            <MudAlert Severity="Severity.Error" Class="mb-4">@_error</MudAlert>
+        }
+
+        <EditForm Model="Input" method="post" OnValidSubmit="LoginAsync" FormName="login">
+            <DataAnnotationsValidator />
+
+            <label class="fe-label" for="email">E-mail</label>
+            <InputText id="email" class="fe-input" @bind-Value="Input.Email" autocomplete="username" />
+            <ValidationMessage For="() => Input.Email" class="fe-validation" />
+
+            <label class="fe-label" for="password">Adgangskode</label>
+            <InputText id="password" type="password" class="fe-input" @bind-Value="Input.Password" autocomplete="current-password" />
+            <ValidationMessage For="() => Input.Password" class="fe-validation" />
+
+            <label class="fe-check">
+                <InputCheckbox @bind-Value="Input.RememberMe" /> Husk mig på denne enhed
+            </label>
+
+            <button type="submit" class="fe-button">Log ind</button>
+        </EditForm>
+
+        <MudText Typo="Typo.body2" Class="mt-4">
+            Har du fået et invitationslink? Åbn linket for at oprette en konto.
+        </MudText>
+    </MudPaper>
+</div>
+
+@code {
+    [SupplyParameterFromForm]
+    private InputModel Input { get; set; } = default!;
+
+    [SupplyParameterFromQuery]
+    private string? ReturnUrl { get; set; }
+
+    private string? _error;
+
+    protected override void OnInitialized() => Input ??= new();
+
+    private async Task LoginAsync()
+    {
+        var result = await SignInManager.PasswordSignInAsync(
+            Input.Email.Trim(), Input.Password, Input.RememberMe, lockoutOnFailure: true);
+
+        if (result.Succeeded)
+        {
+            Navigation.NavigateTo(ReturnUrls.Safe(ReturnUrl), forceLoad: true);
+            return;
+        }
+
+        _error = result.IsLockedOut
+            ? "Kontoen er midlertidigt låst efter for mange forsøg. Prøv igen om lidt."
+            : "Forkert e-mail eller adgangskode.";
+    }
+
+    private sealed class InputModel
+    {
+        [Required(ErrorMessage = "Skriv din e-mail.")]
+        [EmailAddress(ErrorMessage = "Det er ikke en gyldig e-mail.")]
+        public string Email { get; set; } = string.Empty;
+
+        [Required(ErrorMessage = "Skriv din adgangskode.")]
+        public string Password { get; set; } = string.Empty;
+
+        public bool RememberMe { get; set; } = true;
+    }
+}

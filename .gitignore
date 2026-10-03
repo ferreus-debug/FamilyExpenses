@@ -486,3 +486,7 @@ artifacts/
 *.db
 *.db-shm
 *.db-wal
+
+# E2E
+tests/e2e/node_modules/
+tests/e2e/shots/

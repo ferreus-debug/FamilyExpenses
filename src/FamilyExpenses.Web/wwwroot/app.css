@@ -7,3 +7,80 @@
     .blazor-error-boundary::after {
         content: "Der opstod en fejl."
     }
+
+/* Account pages render statically (Identity cookies), so they use plain inputs styled with Mud palette variables. */
+.account-page {
+    max-width: 440px;
+    margin: 2rem auto;
+}
+
+.fe-label {
+    display: block;
+    margin-top: 1rem;
+    margin-bottom: .25rem;
+    font-size: .875rem;
+    color: var(--mud-palette-text-secondary);
+}
+
+.fe-input {
+    width: 100%;
+    box-sizing: border-box;
+    padding: .65rem .75rem;
+    font-size: 1rem;
+    color: var(--mud-palette-text-primary);
+    background: var(--mud-palette-surface);
+    border: 1px solid var(--mud-palette-lines-inputs);
+    border-radius: var(--mud-default-borderradius);
+}
+
+    .fe-input:focus {
+        outline: 2px solid var(--mud-palette-primary);
+        border-color: transparent;
+    }
+
+.fe-validation {
+    display: block;
+    margin-top: .25rem;
+    font-size: .8rem;
+    color: var(--mud-palette-error);
+}
+
+.fe-check {
+    display: flex;
+    gap: .5rem;
+    align-items: center;
+    margin-top: 1rem;
+}
+
+.fe-button {
+    width: 100%;
+    margin-top: 1.5rem;
+    padding: .75rem;
+    font-size: 1rem;
+    font-weight: 500;
+    color: var(--mud-palette-primary-text);
+    background: var(--mud-palette-primary);
+    border: none;
+    border-radius: var(--mud-default-borderradius);
+    cursor: pointer;
+}
+
+    .fe-button:hover {
+        filter: brightness(1.1);
+    }
+
+/* Plain logout button inside the app bar form. */
+.fe-appbar-button {
+    background: none;
+    border: none;
+    color: inherit;
+    cursor: pointer;
+    font: inherit;
+    display: flex;
+    align-items: center;
+    gap: .25rem;
+}
+
+    .fe-check input {
+        accent-color: var(--mud-palette-primary);
+    }

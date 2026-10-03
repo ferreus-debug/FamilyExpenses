@@ -54,6 +54,8 @@ Ved afregning vægtes deltagerne:
    - Alle indloggede i begivenheden kan se alle udgifter og afregningen.
    - Man kan oprette og redigere udgifter; man kan kun redigere/slette **egne** udgifter (administrator kan alle).
    - Den ekstra person har ikke nødvendigvis login – administrator eller en familie registrerer på personens vegne.
+   - **Registrering er lukket**: kun den allerførste bruger (ejeren) og personer med et gyldigt invitationslink
+     kan oprette konto, så fremmede ikke kan oprette sig på den offentlige adresse.
 
 ### Senere (ikke MVP)
 - Kvitteringsbilleder.

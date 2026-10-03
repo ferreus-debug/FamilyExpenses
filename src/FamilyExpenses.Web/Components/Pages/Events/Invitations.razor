@@ -1,0 +1,108 @@
+@page "/events/{EventId:guid}/invitations"
+@attribute [Authorize]
+@inherits EventPageBase
+@inject InvitationService InvitationService
+
+<PageTitle>Invitationer · @(Details?.Name)</PageTitle>
+
+@if (Details is null)
+{
+    <MudProgressLinear Indeterminate="true" Color="Color.Primary" />
+}
+else
+{
+    <MudText Typo="Typo.h4" Class="mb-2">@Details.Name</MudText>
+    <EventTabs EventId="EventId" Active="invitations" IsAdmin="Details.IsAdmin" />
+
+    @if (!Details.IsAdmin)
+    {
+        <MudAlert Severity="Severity.Info">Kun administratoren kan invitere.</MudAlert>
+    }
+    else
+    {
+        <MudText Class="mb-4">
+            Opret et link til hver familie. Den der åbner linket, opretter en konto (eller logger ind) og bliver koblet til familien.
+        </MudText>
+
+        <MudGrid Class="mb-6">
+            @foreach (var h in Details.Households)
+            {
+                <MudItem xs="12" sm="6" md="3">
+                    <MudPaper Class="pa-4" Outlined="true">
+                        <MudText Typo="Typo.subtitle1">@h.Name</MudText>
+                        <MudText Typo="Typo.caption" Color="Color.Secondary" Class="d-block mb-2">
+                            @(h.MemberNames.Count > 0 ? "Logget ind: " + string.Join(", ", h.MemberNames) : "Ingen logins endnu")
+                        </MudText>
+                        <MudButton Variant="Variant.Outlined" Color="Color.Primary" Size="Size.Small"
+                                   StartIcon="@Icons.Material.Filled.Link" OnClick="() => CreateAsync(h)">Opret link</MudButton>
+                    </MudPaper>
+                </MudItem>
+            }
+        </MudGrid>
+
+        <MudText Typo="Typo.h6" Class="mb-2">Oprettede links</MudText>
+        <MudTable Items="_invitations" Dense="true" Breakpoint="Breakpoint.Sm" Loading="_invitations is null" Elevation="1">
+            <HeaderContent>
+                <MudTh>Husstand</MudTh>
+                <MudTh>Status</MudTh>
+                <MudTh>Udløber</MudTh>
+            </HeaderContent>
+            <RowTemplate>
+                <MudTd DataLabel="Husstand">@context.HouseholdName</MudTd>
+                <MudTd DataLabel="Status">
+                    @switch (context.Status)
+                    {
+                        case InvitationStatus.Accepted:
+                            <MudChip T="string" Size="Size.Small" Color="Color.Success">Brugt af @context.AcceptedByName</MudChip>
+                            break;
+                        case InvitationStatus.Pending:
+                            <MudChip T="string" Size="Size.Small" Color="Color.Info">Venter</MudChip>
+                            break;
+                        default:
+                            <MudChip T="string" Size="Size.Small">Udløbet</MudChip>
+                            break;
+                    }
+                </MudTd>
+                <MudTd DataLabel="Udløber">@context.ExpiresAt.ToLocalTime().ToString("d. MMM yyyy")</MudTd>
+            </RowTemplate>
+            <NoRecordsContent>
+                <MudText Color="Color.Secondary">Ingen links endnu.</MudText>
+            </NoRecordsContent>
+        </MudTable>
+    }
+}
+
+@code {
+    private IReadOnlyList<InvitationDto>? _invitations;
+
+    protected override async Task ReloadAsync()
+    {
+        await base.ReloadAsync();
+        if (Details?.IsAdmin == true)
+        {
+            _invitations = await LoadAsync(() => InvitationService.ListAsync(EventId)) ?? [];
+        }
+    }
+
+    private async Task CreateAsync(HouseholdDto household)
+    {
+        CreatedInvitation? created = null;
+        if (!await RunAsync(async () => created = await InvitationService.CreateAsync(EventId, household.Id)))
+        {
+            return;
+        }
+
+        var url = Navigation.ToAbsoluteUri($"invite/{created!.Token}").ToString();
+        var dialog = await Dialogs.ShowAsync<InvitationLinkDialog>(
+            "Invitationslink",
+            new DialogParameters<InvitationLinkDialog>
+            {
+                { d => d.Url, url },
+                { d => d.HouseholdName, household.Name },
+                { d => d.Expires, created.ExpiresAt },
+            },
+            new DialogOptions { MaxWidth = MaxWidth.Small, FullWidth = true });
+        await dialog.Result;
+        await ReloadAsync();
+    }
+}
