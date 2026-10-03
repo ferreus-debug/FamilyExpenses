@@ -3,6 +3,10 @@ name: Deploy
 # Runs after CI has passed on main (i.e. after a pull request is merged) and installs the
 # linux-arm64 build from that CI run on the Raspberry Pi through a self-hosted runner.
 # Never runs for pull requests, so code from unmerged branches never reaches the Pi.
+#
+# Each build lands in its own folder (/opt/familyexpenses/releases/<release>) and a symlink is
+# swapped, so going back is instant: if the new release doesn't come up healthy it is rolled back
+# automatically and this job fails. Manual rollback: the "Rollback" workflow.
 on:
   workflow_run:
     workflows: [CI]
@@ -24,7 +28,16 @@ jobs:
     environment:
       name: production
       url: https://turkassen.mathiasspangsberg.com
+    env:
+      PORT: ${{ vars.PI_PORT || '5080' }}
     steps:
+      # Same name CI stamped into the build (r<run>-<sha>), which /version reports back.
+      - name: Release name
+        env:
+          RUN_NUMBER: ${{ github.event.workflow_run.run_number }}
+          SHA: ${{ github.event.workflow_run.head_sha }}
+        run: echo "RELEASE=r${RUN_NUMBER}-${SHA::7}" >> "$GITHUB_ENV"
+
       - name: Check out the deployed commit
         uses: actions/checkout@v4
         with:
@@ -45,5 +58,19 @@ jobs:
           # Artifacts do not keep the executable bit.
           chmod +x release/app/FamilyExpenses.Web release/deploy/*.sh
 
-      - name: Install on the Pi
-        run: sudo release/deploy/familyexpenses-deploy.sh "$PWD/release" "${{ vars.PI_PORT || '5080' }}"
+      # Goes live, checks /healthz and /version, and rolls back by itself (failing the job) if not.
+      - name: Install and go live
+        run: sudo release/deploy/familyexpenses-deploy.sh "$PWD/release" "$PORT" "$RELEASE"
+
+      - name: Summary
+        if: always()
+        run: |
+          {
+            echo "### Deploy of \`$RELEASE\`: ${{ job.status }}"
+            echo "https://turkassen.mathiasspangsberg.com"
+            echo
+            echo "Releases on the Pi (roll back with Actions → Rollback):"
+            echo '```'
+            /opt/familyexpenses/bin/rollback.sh --list || true
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"

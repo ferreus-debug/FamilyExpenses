@@ -36,11 +36,15 @@ jobs:
       - name: Test
         run: dotnet test --no-build --configuration Release
 
+      # Release name = run number + short SHA: sorts in deploy order and says exactly which commit
+      # is live. Deploy computes the same name and checks /version reports it before going live.
       - name: Publish for Raspberry Pi (linux-arm64)
         run: >
           dotnet publish src/FamilyExpenses.Web/FamilyExpenses.Web.csproj
           --configuration Release --runtime linux-arm64 --self-contained
           --output artifacts/pi
+          -p:InformationalVersion=r${{ github.run_number }}-${GITHUB_SHA::7}
+          -p:IncludeSourceRevisionInInformationalVersion=false
 
       - uses: actions/upload-artifact@v4
         with:

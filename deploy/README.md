@@ -94,8 +94,37 @@ Runneren ligger i `~/actions-runner-familyexpenses` og kører som `pi`. Bruger a
 så sæt repo-variablen `PI_PORT` (Settings → Secrets and variables → Actions → Variables).
 
 Deploys kan følges under **Actions** → **Deploy**, og miljøet **production** viser, hvilken commit der kører.
-Svarer appen ikke på `/healthz` efter installationen, fejler deployet – se `journalctl -u familyexpenses -n 50`
-og ret fejlen med en ny pull request (eller revert den seneste).
+
+### Releases og automatisk rollback
+
+Som wowanalyser: hver build får sin egen mappe, og en symlink peger på den, der kører.
+
+```
+CI på main ──► build stemplet med release-navnet r<run>-<sha>
+                    ▼
+Pi-runner: install-pi.sh
+    backup af databasen
+    /opt/familyexpenses/releases/r<run>-<sha>/   ← pakkes ud her
+    /opt/familyexpenses/current ──► den mappe     ← symlinken skiftes
+    genstart, vent på /healthz og /version = r<run>-<sha>
+    └─ ikke sund? skift tilbage til den forrige release og lad deployet fejle
+```
+
+Den kørende version ses på `https://turkassen.mathiasspangsberg.com/version`. De seneste 5 releases bliver
+liggende på Pi'en.
+
+**Rul tilbage manuelt** – det tager sekunder, fordi den ældre build stadig ligger på Pi'en:
+
+| Hvor | Hvordan |
+|------|---------|
+| GitHub (web / app) | **Actions** → **Rollback** → *Run workflow*. Tomt felt = den forrige release, eller skriv et navn fra listen i seneste deploys opsummering. |
+| SSH på Pi'en | `sudo /opt/familyexpenses/bin/rollback.sh` (forrige) · `… rollback.sh r12-b9886e9` · `rollback.sh --list` |
+| Ældre end de 5 gemte | Åbn den commits **CI**-kørsel → *Re-run all jobs*; Deploy kører bagefter og installerer den igen. |
+
+Næste merge til `main` deployer fremad igen som normalt.
+
+> En rollback skifter kun koden, ikke databasen. Har den nye version migreret databasen, kan den gamle
+> fejle mod den – så gendan fra backuppen, der blev taget lige før deployet (se *Gendan fra backup*).
 
 > Runneren kører kun kode, der er merget til `main`, men som `pi` med sudo. Giv derfor kun skriveadgang til
 > repoet til folk, du stoler på.

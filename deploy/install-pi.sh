@@ -1,14 +1,23 @@
 #!/usr/bin/env bash
 # Installs or updates Fællesudgifter on the Raspberry Pi. Idempotent: run it for every new version.
-# Run on the Pi as root from the uploaded release folder (publish-pi.sh does this for you):
-#   sudo ./deploy/install-pi.sh [port]
+# Run on the Pi as root from the uploaded release folder (the Deploy workflow and publish-pi.sh do this):
+#   sudo ./deploy/install-pi.sh [port] [release-name]
 # Expects the published app in ../app relative to this script.
+#
+# Every release gets its own folder under /opt/familyexpenses/releases/<release-name>, and
+# /opt/familyexpenses/current is a symlink to the live one. Going live = swap the symlink + restart.
+# If the new release doesn't answer /healthz and /version with its own name, the script switches
+# back to the previous release by itself and fails, so a broken build never stays live.
+# Manual rollback: /opt/familyexpenses/bin/rollback.sh (see rollback.sh).
 set -euo pipefail
 
 PORT=${1:-5080}
+RELEASE=${2:-local-$(date +%Y%m%d-%H%M%S)}
+KEEP=${KEEP:-5}   # releases kept on disk for rollback
 HERE=$(cd "$(dirname "$0")" && pwd)
 APP_SOURCE=$(cd "$HERE/../app" && pwd)
 APP_DIR=/opt/familyexpenses
+RELEASES=$APP_DIR/releases
 CONFIG_DIR=/etc/familyexpenses
 ENV_FILE=$CONFIG_DIR/familyexpenses.env
 
@@ -20,6 +29,11 @@ fi
 if [[ "$(uname -m)" != "aarch64" ]]; then
     echo "Pi'en skal køre et 64-bit OS (uname -m = aarch64), men den siger '$(uname -m)'." >&2
     echo ".NET 10 understøtter ikke 32-bit ARM. Geninstallér med Raspberry Pi OS (64-bit)." >&2
+    exit 1
+fi
+
+if [[ ! $RELEASE =~ ^[A-Za-z0-9._-]+$ ]]; then
+    echo "Ugyldigt release-navn: '$RELEASE'" >&2
     exit 1
 fi
 
@@ -56,14 +70,22 @@ ASPNETCORE_URLS=http://127.0.0.1:$PORT
 ENV
 fi
 
-echo "==> App til $APP_DIR"
-if systemctl is-active --quiet familyexpenses; then
-    systemctl stop familyexpenses
+echo "==> Release $RELEASE"
+install -d -m 0755 "$APP_DIR" "$RELEASES" "$APP_DIR/bin"
+# Before releases existed the app was installed straight into $APP_DIR. Keep that install as a
+# release, so there is something to roll back to.
+if [[ -f "$APP_DIR/FamilyExpenses.Web" && ! -L "$APP_DIR/current" ]]; then
+    install -d -m 0755 "$RELEASES/r0-initial"
+    find "$APP_DIR" -mindepth 1 -maxdepth 1 ! -name releases ! -name bin -exec mv -t "$RELEASES/r0-initial" {} +
+    ln -sfn "$RELEASES/r0-initial" "$APP_DIR/current"
 fi
-install -d -m 0755 "$APP_DIR"
-rsync -a --delete "$APP_SOURCE/" "$APP_DIR/"
-chown -R root:root "$APP_DIR"
-chmod 0755 "$APP_DIR/FamilyExpenses.Web"
+DEST=$RELEASES/$RELEASE
+rm -rf "$DEST"   # re-deploying the same release replaces it
+install -d -m 0755 "$DEST"
+cp -a "$APP_SOURCE/." "$DEST/"
+chown -R root:root "$DEST"
+chmod 0755 "$DEST/FamilyExpenses.Web"
+install -m 0755 "$HERE/rollback.sh" "$APP_DIR/bin/rollback.sh"
 
 echo "==> systemd-enheder og backup-script"
 install -m 0644 "$HERE/familyexpenses.service" /etc/systemd/system/familyexpenses.service
@@ -73,7 +95,6 @@ install -m 0755 "$HERE/backup.sh" /usr/local/bin/familyexpenses-backup
 systemctl daemon-reload
 systemctl enable --now familyexpenses-backup.timer
 systemctl enable familyexpenses
-systemctl start familyexpenses
 
 url=$(grep -E '^ASPNETCORE_URLS=' "$ENV_FILE" | cut -d= -f2)
 
@@ -87,16 +108,59 @@ if command -v nginx >/dev/null; then
     systemctl reload nginx
 fi
 
-echo "==> Tjekker at appen svarer"
-for _ in $(seq 1 30); do
-    if curl -fsS "$url/healthz" >/dev/null 2>&1; then
-        echo "OK: $url/healthz svarer Healthy"
-        echo
-        echo "Næste skridt: tilføj en regel i Cloudflare Tunnel, der peger på $url (se deploy/README.md)."
-        exit 0
-    fi
-    sleep 1
-done
+# Healthy, and (when the build has /version) answering with the expected release name.
+wait_healthy() {
+    local want=$1 version
+    for _ in $(seq 1 30); do
+        if curl -fsS "$url/healthz" >/dev/null 2>&1; then
+            version=$(curl -fsS "$url/version" 2>/dev/null || true)
+            if [[ -z "$version" || "$version" == "$want" ]]; then
+                return 0
+            fi
+        fi
+        sleep 1
+    done
+    return 1
+}
 
-echo "Appen svarer ikke. Se loggen med: journalctl -u familyexpenses -n 50" >&2
-exit 1
+# Atomic symlink swap: a crash halfway never leaves "current" missing.
+switch_to() {
+    ln -sfn "$1" "$APP_DIR/current.tmp"
+    mv -Tf "$APP_DIR/current.tmp" "$APP_DIR/current"
+}
+
+PREVIOUS=$(readlink -f "$APP_DIR/current" 2>/dev/null || true)
+[[ "$PREVIOUS" == "$DEST" ]] && PREVIOUS=""
+
+# A rollback restores the code, not the database: take a backup before a new release can migrate it.
+if [[ -n "$PREVIOUS" && -f /var/lib/familyexpenses/familyexpenses.db ]]; then
+    echo "==> Backup af databasen før opdatering"
+    systemctl start familyexpenses-backup || echo "ADVARSEL: backup fejlede – fortsætter" >&2
+fi
+
+echo "==> Går live med $RELEASE"
+switch_to "$DEST"
+systemctl restart familyexpenses
+
+if ! wait_healthy "$RELEASE"; then
+    echo "FEJL: $RELEASE svarer ikke sundt. Seneste log:" >&2
+    journalctl -u familyexpenses -n 40 --no-pager >&2 || true
+    if [[ -n "$PREVIOUS" && -d "$PREVIOUS" ]]; then
+        echo "==> Ruller tilbage til $(basename "$PREVIOUS")" >&2
+        switch_to "$PREVIOUS"
+        systemctl restart familyexpenses
+        wait_healthy "$(basename "$PREVIOUS")" || echo "ADVARSEL: den tidligere version svarer heller ikke" >&2
+    fi
+    exit 1
+fi
+echo "OK: $RELEASE er live på $url"
+
+echo "==> Rydder op (beholder $KEEP releases)"
+live=$(basename "$(readlink -f "$APP_DIR/current")")
+# Newest first by folder time (also orders manual local-* releases correctly); never the live one.
+find "$RELEASES" -mindepth 1 -maxdepth 1 -type d -printf '%T@ %f\n' | sort -rn | cut -d' ' -f2- \
+    | tail -n +$((KEEP + 1)) | while read -r old; do
+    [[ "$old" == "$live" ]] && continue
+    rm -rf "${RELEASES:?}/$old"
+    echo "   fjernede $old"
+done
