@@ -6,6 +6,7 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Diagnostics.HealthChecks;
 
 namespace FamilyExpenses.Infrastructure;
 
@@ -53,6 +54,10 @@ public static class DependencyInjection
 
         return services;
     }
+
+    /// <summary>Health check that the SQLite database can be reached (used by /healthz).</summary>
+    public static IHealthChecksBuilder AddAppDatabaseCheck(this IHealthChecksBuilder builder) =>
+        builder.AddDbContextCheck<AppDbContext>("database");
 
     /// <summary>Applies pending migrations. Fine for a single instance on the Pi.</summary>
     public static async Task MigrateDatabaseAsync(this IServiceProvider services, CancellationToken cancellationToken = default)

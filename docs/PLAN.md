@@ -269,29 +269,22 @@ Mobil først, da udgifter typisk registreres på telefonen. UI-tekster på dansk
 - CI: GitHub Actions – `dotnet build`, `dotnet test`, `dotnet format --verify-no-changes`,
   samt `dotnet publish -r linux-arm64` så Pi-buildet altid er verificeret.
 
-## 8a. Drift på Raspberry Pi
+## 8a. Drift på Raspberry Pi (fase 6 – se `deploy/README.md`)
 
-- **Hardware**: Raspberry Pi 4 (2 GB RAM eller mere er rigeligt til Blazor Server + SQLite for 3–4 familier).
-- **OS**: 64-bit Raspberry Pi OS (arm64) er påkrævet – tjek med `uname -m`, som skal give `aarch64`.
-  Giver den `armv7l`, skal Pi'en geninstalleres med 64-bit OS (.NET 10 understøtter ikke 32-bit ARM).
-- **SD-kort**: SQLite skriver hyppigt; brug et godt kort (A1/A2) eller helst USB-SSD for holdbarhed.
-- **Build**: `dotnet publish src/FamilyExpenses.Web -c Release -r linux-arm64 --self-contained`
-  → ingen .NET-installation nødvendig på Pi'en. `deploy/publish-pi.sh` bygger og kopierer via `rsync`/`scp`.
-- **Kørsel**: systemd-service (`deploy/familyexpenses.service`) med `Restart=always`, egen bruger,
-  `ASPNETCORE_URLS=http://127.0.0.1:5000`, data i `/var/lib/familyexpenses/app.db`.
-- **Adgang udefra + HTTPS**: **Cloudflare Tunnel** – samme opsætning som brugerens øvrige apps på Pi'en.
-  - Tilføj en ny ingress-regel i den eksisterende `cloudflared`-konfiguration, fx
-    `udgifter.<domæne>` → `http://localhost:5000`, og opret DNS-record med `cloudflared tunnel route dns`.
-  - Cloudflare terminerer TLS, så der er ingen reverse proxy eller certifikater på Pi'en, og ingen åbne porte i routeren.
-  - WebSockets (krævet af Blazor Server) er slået til som standard i Cloudflare – tjek at det ikke er slået fra på domænet.
-  - Appen konfigureres med `UseForwardedHeaders` (X-Forwarded-Proto/For), så den ved, at den kører bag HTTPS
-    (vigtigt for secure cookies og redirects i Identity).
-  - Valgfrit ekstra lag: **Cloudflare Access** foran domænet (fx e-mail-OTP) oven i appens eget login.
-  - Vælg en ledig port, der ikke kolliderer med de andre apps (5000 er kun et eksempel).
-- **Data Protection-nøgler** persisteres til disk (`PersistKeysToFileSystem`), så logins overlever genstart.
-- **Migrations** køres automatisk ved opstart (`Database.Migrate()`) – acceptabelt for én instans.
-- **Backup**: cron-job med `sqlite3 app.db ".backup ..."` dagligt til USB/NAS.
-- **Alternativ**: Docker-image (`mcr.microsoft.com/dotnet/aspnet:10.0` har arm64-variant), hvis Docker allerede kører på Pi'en.
+- **Adresse**: `udgifter.mathiasspangsberg.com` via samme Cloudflare Tunnel som `budget.` og `madplan.mathiasspangsberg.com`.
+- **Hardware/OS**: Raspberry Pi 4 med 64-bit Raspberry Pi OS (`aarch64`). Appen bruger ca. 140 MB RAM.
+- **Build**: selvstændig `linux-arm64`-udgave (ingen .NET på Pi'en). CI bygger den på hver commit.
+- **Installation**: `deploy/publish-pi.sh bruger@pi [port]` bygger, kopierer og kører `deploy/install-pi.sh` på Pi'en
+  (idempotent – samme kommando til opdateringer). Scriptet afviser 32-bit OS og en port, der er optaget af en anden app.
+- **Kørsel**: systemd `Type=notify` (`UseSystemd()`), egen systembruger, kun skriveadgang til `/var/lib/familyexpenses`,
+  Kestrel lytter kun på `http://127.0.0.1:5080`. Lokale indstillinger i `/etc/familyexpenses/familyexpenses.env`.
+- **Bag tunnelen**: forwarded headers (`X-Forwarded-Proto/For`) fra loopback, så cookies er `Secure`, HSTS sendes og
+  invitationslinks får `https://`. Ingen HTTPS-redirect i appen; Cloudflares "Always Use HTTPS" står for det.
+  Er cloudflared i Docker: `ReverseProxy__KnownNetworks__0=172.17.0.0/16`.
+- **Sundhedstjek**: `/healthz` (inkl. database).
+- **Backup**: `familyexpenses-backup.timer` dagligt kl. 03:30 → `sqlite3 .backup` (konsistent mens appen kører) +
+  integritetstjek + gzip, 30 dages rotation; `BACKUP_DIR` kan pege på USB/NAS.
+- **Migrations** køres automatisk ved opstart; Data Protection-nøgler ligger i databasen, så logins overlever genstart.
 
 ## 9. Faser og leverancer
 

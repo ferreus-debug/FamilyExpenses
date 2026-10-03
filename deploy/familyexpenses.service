@@ -1,0 +1,44 @@
+# Fællesudgifter on the Raspberry Pi. Installed by deploy/install-pi.sh.
+# Local settings (port, extra proxy networks) go in /etc/familyexpenses/familyexpenses.env.
+[Unit]
+Description=Fællesudgifter (Blazor)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=notify
+User=familyexpenses
+Group=familyexpenses
+WorkingDirectory=/opt/familyexpenses
+ExecStart=/opt/familyexpenses/FamilyExpenses.Web
+
+Environment=ASPNETCORE_ENVIRONMENT=Production
+Environment=ASPNETCORE_URLS=http://127.0.0.1:5080
+Environment="ConnectionStrings__Default=Data Source=/var/lib/familyexpenses/familyexpenses.db"
+# Workstation GC uses far less memory than server GC on a small machine.
+Environment=DOTNET_gcServer=0
+EnvironmentFile=-/etc/familyexpenses/familyexpenses.env
+
+# Creates /var/lib/familyexpenses owned by the service user (database lives here).
+StateDirectory=familyexpenses
+StateDirectoryMode=0750
+
+Restart=always
+RestartSec=5
+TimeoutStopSec=30
+
+# Hardening: the app can only write to its state directory.
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+PrivateTmp=true
+PrivateDevices=true
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+RestrictSUIDSGID=true
+LockPersonality=true
+RestrictAddressFamilies=AF_INET AF_INET6 AF_UNIX
+
+[Install]
+WantedBy=multi-user.target

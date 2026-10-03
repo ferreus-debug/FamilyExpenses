@@ -51,5 +51,7 @@ Pakkeversioner styres centralt i `Directory.Packages.props`; fælles build-indst
 
 ## Raspberry Pi
 
+Se **[deploy/README.md](deploy/README.md)** for installation, Cloudflare Tunnel, backup og fejlfinding.
+
 CI bygger en selvstændig `linux-arm64`-udgave (artefakt `familyexpenses-linux-arm64`), som kan køre på en
 Raspberry Pi 4 med 64-bit OS uden at .NET er installeret. Drift sker via systemd og Cloudflare Tunnel – se planen, afsnit 8a.

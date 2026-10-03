@@ -1,0 +1,15 @@
+# Example for a locally managed tunnel (/etc/cloudflared/config.yml).
+# Add the hostname rule ABOVE the final catch-all, next to your other apps, then:
+#   cloudflared tunnel route dns <tunnel-navn> udgifter.mathiasspangsberg.com
+#   sudo systemctl restart cloudflared
+#
+# Use 127.0.0.1 (not "localhost"): the app only listens on IPv4 loopback.
+tunnel: <tunnel-id>
+credentials-file: /etc/cloudflared/<tunnel-id>.json
+
+ingress:
+  - hostname: udgifter.mathiasspangsberg.com
+    service: http://127.0.0.1:5080
+  # - hostname: budget.mathiasspangsberg.com
+  #   service: http://127.0.0.1:8080
+  - service: http_status:404

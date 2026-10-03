@@ -21,6 +21,9 @@ jobs:
         with:
           dotnet-version: 10.0.x
 
+      - name: Lint shell scripts
+        run: shellcheck deploy/*.sh tests/e2e/run.sh
+
       - name: Restore
         run: dotnet restore
 

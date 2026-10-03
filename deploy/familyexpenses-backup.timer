@@ -1,0 +1,11 @@
+[Unit]
+Description=Daglig backup af Fællesudgifter
+
+[Timer]
+OnCalendar=*-*-* 03:30:00
+RandomizedDelaySec=15min
+# Runs at next boot if the Pi was off at 03:30.
+Persistent=true
+
+[Install]
+WantedBy=timers.target
