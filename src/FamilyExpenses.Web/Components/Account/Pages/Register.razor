@@ -1,144 +1,60 @@
 @page "/Account/Register"
 @using FamilyExpenses.Application.Invitations
-@inject UserManager<AppUser> UserManager
-@inject SignInManager<AppUser> SignInManager
 @inject RegistrationPolicy Policy
 @inject InvitationService Invitations
-@inject NavigationManager Navigation
 
-<PageTitle>Opret konto</PageTitle>
+<PageTitle>Kom med</PageTitle>
 
 <div class="account-page">
     <MudPaper Class="pa-6" Elevation="2">
-        <MudText Typo="Typo.h5" GutterBottom="true">Opret konto</MudText>
+        <MudText Typo="Typo.h5" GutterBottom="true">Kom med</MudText>
 
         @if (!_allowed)
         {
             <MudAlert Severity="Severity.Info">
-                Du skal bruge et gyldigt invitationslink for at oprette en konto. Spørg den, der har oprettet begivenheden.
+                Du skal bruge et gyldigt invitationslink for at komme med. Spørg den, der har oprettet turen.
             </MudAlert>
+            <MudText Typo="Typo.body2" Class="mt-4">
+                Har du allerede en konto? <a href="Account/Login">Log ind</a>
+            </MudText>
         }
         else
         {
             @if (_preview is not null)
             {
-                <MudAlert Severity="Severity.Success" Class="mb-4">
+                <MudAlert Severity="Severity.Success" Class="mb-2">
                     Du er inviteret til <strong>@_preview.EventName</strong> som en del af <strong>@_preview.HouseholdName</strong>.
                 </MudAlert>
             }
             else
             {
-                <MudAlert Severity="Severity.Info" Class="mb-4">
-                    Du er den første bruger og bliver ejer af appen. Derefter kan andre kun oprette konto via invitation.
+                <MudAlert Severity="Severity.Info" Class="mb-2">
+                    Du er den første bruger og bliver ejer af appen. Derefter kan andre kun komme med via invitation.
                 </MudAlert>
             }
 
-            @foreach (var error in _errors)
-            {
-                <MudAlert Severity="Severity.Error" Class="mb-2">@error</MudAlert>
-            }
-
-            <EditForm Model="Input" method="post" OnValidSubmit="RegisterAsync" FormName="register">
-                <DataAnnotationsValidator />
-
-                <label class="fe-label" for="name">Dit navn</label>
-                <InputText id="name" class="fe-input" @bind-Value="Input.DisplayName" autocomplete="name" />
-                <ValidationMessage For="() => Input.DisplayName" class="fe-validation" />
-
-                <label class="fe-label" for="email">E-mail</label>
-                <InputText id="email" class="fe-input" @bind-Value="Input.Email" autocomplete="username" />
-                <ValidationMessage For="() => Input.Email" class="fe-validation" />
-
-                <label class="fe-label" for="password">Adgangskode (mindst 8 tegn)</label>
-                <InputText id="password" type="password" class="fe-input" @bind-Value="Input.Password" autocomplete="new-password" />
-                <ValidationMessage For="() => Input.Password" class="fe-validation" />
-
-                <label class="fe-label" for="confirm">Gentag adgangskode</label>
-                <InputText id="confirm" type="password" class="fe-input" @bind-Value="Input.ConfirmPassword" autocomplete="new-password" />
-                <ValidationMessage For="() => Input.ConfirmPassword" class="fe-validation" />
-
-                <button type="submit" class="fe-button">Opret konto</button>
-            </EditForm>
-
-            <MudText Typo="Typo.body2" Class="mt-4">
-                Har du allerede en konto? <a href="@LoginHref">Log ind</a>
+            <MudText Typo="Typo.body2">
+                Log ind med din Google-konto. Har du ingen konto her endnu, oprettes den automatisk.
             </MudText>
+
+            <GoogleSignInForm Invite="@InviteToken" />
         }
     </MudPaper>
 </div>
 
 @code {
-    [SupplyParameterFromForm]
-    private InputModel Input { get; set; } = default!;
-
     [SupplyParameterFromQuery(Name = "invite")]
     private string? InviteToken { get; set; }
 
     private bool _allowed;
     private InvitationPreview? _preview;
-    private List<string> _errors = [];
-
-    private string InviteUrl => $"/invite/{Uri.EscapeDataString(InviteToken ?? string.Empty)}";
-
-    private string LoginHref => string.IsNullOrEmpty(InviteToken)
-        ? "Account/Login"
-        : $"Account/Login?ReturnUrl={Uri.EscapeDataString(InviteUrl)}";
 
     protected override async Task OnInitializedAsync()
     {
-        Input ??= new();
         _allowed = await Policy.IsAllowedAsync(InviteToken);
         if (_allowed && !string.IsNullOrWhiteSpace(InviteToken))
         {
             _preview = await Invitations.PreviewAsync(InviteToken);
         }
-    }
-
-    private async Task RegisterAsync()
-    {
-        // Checked again on submit: the link may have been used meanwhile.
-        if (!await Policy.IsAllowedAsync(InviteToken))
-        {
-            _allowed = false;
-            return;
-        }
-
-        var email = Input.Email.Trim();
-        var user = new AppUser { UserName = email, Email = email, DisplayName = Input.DisplayName.Trim() };
-        var result = await UserManager.CreateAsync(user, Input.Password);
-        if (!result.Succeeded)
-        {
-            _errors = [.. result.Errors.Select(Describe)];
-            return;
-        }
-
-        await SignInManager.SignInAsync(user, isPersistent: true);
-        Navigation.NavigateTo(string.IsNullOrWhiteSpace(InviteToken) ? "/" : InviteUrl, forceLoad: true);
-    }
-
-    private static string Describe(IdentityError error) => error.Code switch
-    {
-        "DuplicateUserName" or "DuplicateEmail" => "Der findes allerede en konto med den e-mail. Log ind i stedet.",
-        "PasswordTooShort" => "Adgangskoden skal være mindst 8 tegn.",
-        "PasswordRequiresLower" => "Adgangskoden skal indeholde mindst ét lille bogstav.",
-        _ => error.Description,
-    };
-
-    private sealed class InputModel
-    {
-        [Required(ErrorMessage = "Skriv dit navn.")]
-        [StringLength(100, ErrorMessage = "Navnet må højst være 100 tegn.")]
-        public string DisplayName { get; set; } = string.Empty;
-
-        [Required(ErrorMessage = "Skriv din e-mail.")]
-        [EmailAddress(ErrorMessage = "Det er ikke en gyldig e-mail.")]
-        public string Email { get; set; } = string.Empty;
-
-        [Required(ErrorMessage = "Vælg en adgangskode.")]
-        [StringLength(100, MinimumLength = 8, ErrorMessage = "Adgangskoden skal være mindst 8 tegn.")]
-        public string Password { get; set; } = string.Empty;
-
-        [Compare(nameof(Password), ErrorMessage = "Adgangskoderne er ikke ens.")]
-        public string ConfirmPassword { get; set; } = string.Empty;
     }
 }

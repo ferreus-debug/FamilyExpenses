@@ -31,10 +31,8 @@
                                OnClick="AcceptAsync">Deltag som @_preview.HouseholdName</MudButton>
                 </Authorized>
                 <NotAuthorized>
-                    <MudStack Spacing="2">
-                        <MudButton Href="@RegisterHref" Variant="Variant.Filled" Color="Color.Primary" FullWidth="true">Opret konto</MudButton>
-                        <MudButton Href="@LoginHref" Variant="Variant.Outlined" Color="Color.Primary" FullWidth="true">Jeg har allerede en konto</MudButton>
-                    </MudStack>
+                    @* Same page for new and existing users: Google sign-in creates the account if needed. *@
+                    <MudButton Href="@RegisterHref" Variant="Variant.Filled" Color="Color.Primary" FullWidth="true">Kom med</MudButton>
                 </NotAuthorized>
             </AuthorizeView>
         }
@@ -49,8 +47,6 @@
     private bool _loading = true;
 
     private string RegisterHref => $"Account/Register?invite={Uri.EscapeDataString(Token)}";
-
-    private string LoginHref => $"Account/Login?ReturnUrl={Uri.EscapeDataString($"/invite/{Token}")}";
 
     protected override async Task OnParametersSetAsync()
     {

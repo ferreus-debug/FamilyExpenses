@@ -69,7 +69,7 @@ Tjek bagefter: `https://turkassen.mathiasspangsberg.com/healthz` skal vise `Heal
 
 ## 3. Første bruger
 
-Åbn `https://turkassen.mathiasspangsberg.com/Account/Register` og opret dig. **Den første bruger bliver ejer**.
+Åbn `https://turkassen.mathiasspangsberg.com/Account/Register` og log ind med Google. **Den første bruger bliver ejer**.
 Derefter kan nye konti kun oprettes via invitationslinks fra appen.
 
 ## 4. Automatisk deploy

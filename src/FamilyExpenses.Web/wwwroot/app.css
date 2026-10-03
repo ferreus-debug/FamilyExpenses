@@ -69,6 +69,28 @@
         filter: brightness(1.1);
     }
 
+/* "Log ind med Google": white button with the Google logo, per Google's branding guidelines. */
+.fe-google-button {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: .75rem;
+    color: #1f1f1f;
+    background: #fff;
+    border: 1px solid #747775;
+    cursor: pointer;
+}
+
+    .fe-google-button:disabled {
+        opacity: .6;
+        cursor: progress;
+    }
+
+.fe-google-logo {
+    width: 20px;
+    height: 20px;
+}
+
 /* Plain logout button inside the app bar form. */
 .fe-appbar-button {
     background: none;
