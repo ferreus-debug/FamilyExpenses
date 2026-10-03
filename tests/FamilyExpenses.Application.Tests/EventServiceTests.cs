@@ -18,7 +18,7 @@ public sealed class EventServiceTests : ServiceTestBase
         details.Households.Select(h => h.Name).ShouldBe(["Familie A", "Familie B", "Familie C", "Xenia"]);
         details.Families.Count().ShouldBe(3);
         details.ExtraPerson.ShouldNotBeNull().Weight.ShouldBe(1.0m);
-        details.CanAddFamily.ShouldBeFalse();
+        details.CanAddFamily.ShouldBeTrue(); // 3 of 12 families
         details.Households.Single(h => h.Id == S.A).Participants.Select(p => p.Name).ShouldBe(["Anna", "Anders", "Alma", "Arne"]);
         details.Households.Single(h => h.Id == S.A).Weight.ShouldBe(3.0m);
     }

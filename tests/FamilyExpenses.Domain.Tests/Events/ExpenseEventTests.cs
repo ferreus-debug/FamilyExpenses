@@ -7,14 +7,16 @@ namespace FamilyExpenses.Domain.Tests.Events;
 public sealed class ExpenseEventTests
 {
     [Fact]
-    public void Allows_at_most_three_families()
+    public void Allows_at_most_twelve_families()
     {
         var expenseEvent = new ExpenseEvent("Ferie");
-        expenseEvent.AddFamily("A");
-        expenseEvent.AddFamily("B");
-        expenseEvent.AddFamily("C");
+        for (var i = 1; i <= ExpenseEvent.MaxFamilies; i++)
+        {
+            expenseEvent.AddFamily($"Familie {i}");
+        }
 
-        Should.Throw<DomainException>(() => expenseEvent.AddFamily("D"));
+        expenseEvent.Families.Count().ShouldBe(12);
+        Should.Throw<DomainException>(() => expenseEvent.AddFamily("Én for meget"));
     }
 
     [Fact]
