@@ -75,8 +75,19 @@ systemctl enable --now familyexpenses-backup.timer
 systemctl enable familyexpenses
 systemctl start familyexpenses
 
-echo "==> Tjekker at appen svarer"
 url=$(grep -E '^ASPNETCORE_URLS=' "$ENV_FILE" | cut -d= -f2)
+
+# Same pattern as the other apps: the tunnel sends every hostname to nginx on port 80.
+# reload (not restart) keeps the other sites up.
+if command -v nginx >/dev/null; then
+    echo "==> nginx-site"
+    sed "s|http://127.0.0.1:5080|$url|" "$HERE/nginx-familyexpenses.conf" > /etc/nginx/sites-available/familyexpenses
+    ln -sf /etc/nginx/sites-available/familyexpenses /etc/nginx/sites-enabled/familyexpenses
+    nginx -t
+    systemctl reload nginx
+fi
+
+echo "==> Tjekker at appen svarer"
 for _ in $(seq 1 30); do
     if curl -fsS "$url/healthz" >/dev/null 2>&1; then
         echo "OK: $url/healthz svarer Healthy"

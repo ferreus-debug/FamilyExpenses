@@ -1,15 +1,15 @@
-# Example for a locally managed tunnel (/etc/cloudflared/config.yml).
+# The Pi's tunnel is locally managed: /home/ferreus/.cloudflared/config.yml (owned by ferreus).
 # Add the hostname rule ABOVE the final catch-all, next to your other apps, then:
-#   cloudflared tunnel route dns <tunnel-navn> turkassen.mathiasspangsberg.com
+#   (DNS: proxied CNAME turkassen -> <tunnel-id>.cfargotunnel.com, already created)
 #   sudo systemctl restart cloudflared
 #
-# Use 127.0.0.1 (not "localhost"): the app only listens on IPv4 loopback.
+# Like the other apps, the tunnel sends the hostname to nginx on port 80 (deploy/nginx-familyexpenses.conf).
 tunnel: <tunnel-id>
-credentials-file: /etc/cloudflared/<tunnel-id>.json
+credentials-file: /home/ferreus/.cloudflared/<tunnel-id>.json
 
 ingress:
   - hostname: turkassen.mathiasspangsberg.com
-    service: http://127.0.0.1:5080
+    service: http://localhost:80
   # - hostname: budget.mathiasspangsberg.com
-  #   service: http://127.0.0.1:8080
+  #   service: http://localhost:80
   - service: http_status:404

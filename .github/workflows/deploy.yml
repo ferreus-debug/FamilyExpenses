@@ -20,7 +20,7 @@ concurrency:
 jobs:
   deploy:
     if: github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.event == 'push'
-    runs-on: [self-hosted, linux, ARM64, familyexpenses]
+    runs-on: [self-hosted, pi, familyexpenses]
     environment:
       name: production
       url: https://turkassen.mathiasspangsberg.com
@@ -46,4 +46,4 @@ jobs:
           chmod +x release/app/FamilyExpenses.Web release/deploy/*.sh
 
       - name: Install on the Pi
-        run: sudo /usr/local/sbin/familyexpenses-deploy "$PWD/release" "${{ vars.PI_PORT || '5080' }}"
+        run: sudo release/deploy/familyexpenses-deploy.sh "$PWD/release" "${{ vars.PI_PORT || '5080' }}"
