@@ -113,6 +113,11 @@ Pi-runner: install-pi.sh
 Den kørende version ses på `https://turkassen.mathiasspangsberg.com/version`. De seneste 5 releases bliver
 liggende på Pi'en.
 
+Scripts'ene testes i CI uden en Pi af [`tests/deploy/rollback-test.sh`](../tests/deploy/rollback-test.sh): de
+rigtige `install-pi.sh` og `rollback.sh` køres i en midlertidig mappe med `systemctl`, `curl` m.fl. udskiftet,
+og testen tjekker deploy, automatisk rollback (usund release og forkert `/version`), oprydning, manuel
+rollback og at et ugyldigt release-navn afvises. Kør den selv på Linux/WSL: `tests/deploy/rollback-test.sh`.
+
 **Rul tilbage manuelt** – det tager sekunder, fordi den ældre build stadig ligger på Pi'en:
 
 | Hvor | Hvordan |
