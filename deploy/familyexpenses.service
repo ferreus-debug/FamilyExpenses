@@ -1,5 +1,7 @@
 # Fællesudgifter on the Raspberry Pi. Installed by deploy/install-pi.sh.
 # Local settings (port, extra proxy networks) go in /etc/familyexpenses/familyexpenses.env.
+# Runs whatever /opt/familyexpenses/current points at (a folder under releases/); deploys and
+# rollbacks swap that symlink and restart this unit.
 [Unit]
 Description=Fællesudgifter (Blazor)
 After=network-online.target
@@ -9,8 +11,8 @@ Wants=network-online.target
 Type=notify
 User=familyexpenses
 Group=familyexpenses
-WorkingDirectory=/opt/familyexpenses
-ExecStart=/opt/familyexpenses/FamilyExpenses.Web
+WorkingDirectory=/opt/familyexpenses/current
+ExecStart=/opt/familyexpenses/current/FamilyExpenses.Web
 
 Environment=ASPNETCORE_ENVIRONMENT=Production
 Environment=ASPNETCORE_URLS=http://127.0.0.1:5080

@@ -1,4 +1,5 @@
 using System.Net;
+using FamilyExpenses.Web.Hosting;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.Data.Sqlite;
@@ -55,6 +56,17 @@ public sealed class HostingTests : IAsyncLifetime
         response.StatusCode.ShouldBe(HttpStatusCode.OK);
         (await response.Content.ReadAsStringAsync()).ShouldBe("Healthy");
         File.Exists(_dbPath).ShouldBeTrue();
+    }
+
+    [Fact]
+    public async Task Version_endpoint_reports_the_build_version()
+    {
+        // The deploy compares this with the release name CI stamped in (r<run>-<sha>).
+        var response = await _client.GetAsync(new Uri("/version", UriKind.Relative));
+
+        response.StatusCode.ShouldBe(HttpStatusCode.OK);
+        (await response.Content.ReadAsStringAsync()).ShouldBe(AppVersion.Current);
+        AppVersion.Current.ShouldNotBeNullOrWhiteSpace();
     }
 
     [Fact]

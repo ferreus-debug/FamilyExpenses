@@ -75,6 +75,8 @@ app.MapRazorComponents<App>()
     .AddInteractiveServerRenderMode();
 app.MapAccountEndpoints();
 app.MapHealthChecks("/healthz");
+// Release name stamped in by CI (r<run>-<sha>); the deploy checks it to know the new build is the one answering.
+app.MapGet("/version", () => AppVersion.Current);
 
 await app.RunAsync();
 

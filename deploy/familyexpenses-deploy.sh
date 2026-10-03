@@ -1,11 +1,12 @@
 #!/usr/bin/env bash
 # Run by the Deploy workflow on the Pi's runner. Copies a release folder (app/ + deploy/) out of
 # the runner's work folder to a root-owned staging folder and installs it from there:
-#   sudo deploy/familyexpenses-deploy.sh /path/to/release [port]
+#   sudo deploy/familyexpenses-deploy.sh /path/to/release [port] [release-name]
 set -euo pipefail
 
-SOURCE=${1:?"Brug: familyexpenses-deploy /sti/til/release [port]"}
+SOURCE=${1:?"Brug: familyexpenses-deploy.sh /sti/til/release [port] [release-navn]"}
 PORT=${2:-5080}
+RELEASE=${3:-}
 STAGING_ROOT=/var/lib/familyexpenses-deploy
 STAGING=$STAGING_ROOT/release
 
@@ -31,4 +32,4 @@ cp -r "$SOURCE" "$STAGING"
 chown -R root:root "$STAGING"
 chmod 0755 "$STAGING/app/FamilyExpenses.Web" "$STAGING"/deploy/*.sh
 
-exec "$STAGING/deploy/install-pi.sh" "$PORT"
+exec "$STAGING/deploy/install-pi.sh" "$PORT" ${RELEASE:+"$RELEASE"}
