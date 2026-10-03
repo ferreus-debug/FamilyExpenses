@@ -22,6 +22,45 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  # The deploy runs on the Pi's own runner, so an offline runner leaves that job sitting in the queue
+  # while CI is green: a merge looks fine and never reaches the Pi (wowanalyser hit this after the
+  # runner auto-updated and GitHub dropped its registration). This watchdog runs alongside the deploy
+  # (not as a dependency – that would deadlock) and fails the run with the fix if the Pi hasn't picked
+  # the job up. The queued deploy still lands by itself if the runner comes back later.
+  deploy-watchdog:
+    if: github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.event == 'push'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Wait for the Pi's runner to pick up the deploy
+        env:
+          GH_TOKEN: ${{ github.token }}
+          JOBS_URL: repos/${{ github.repository }}/actions/runs/${{ github.run_id }}/jobs
+        run: |
+          for _ in $(seq 1 20); do   # 20 × 15s = 5 minutes
+            status=$(gh api "$JOBS_URL" --jq '.jobs[] | select(.name == "deploy") | .status')
+            case "$status" in
+              in_progress|completed) echo "The deploy job is running on the Pi."; exit 0 ;;
+            esac
+            sleep 15
+          done
+          {
+            echo "::error::The Pi never picked up the deploy – its self-hosted runner is offline."
+            echo "### Deploy is stuck in the queue: the Pi's runner is offline"
+            echo
+            echo 'Check it on the Pi: `systemctl is-active actions.runner.ferreus-debug-FamilyExpenses.pi-familyexpenses.service`'
+            echo
+            echo "Re-register it (GitHub deletes the registration after a long offline stretch) – on your PC:"
+            echo '```bash'
+            echo "gh api -X POST repos/${{ github.repository }}/actions/runners/registration-token --jq .token"
+            echo '```'
+            echo '```bash'
+            echo 'scp deploy/setup-runner.sh pi@192.168.68.53:/tmp/ && ssh pi@192.168.68.53 "bash /tmp/setup-runner.sh <token>"'
+            echo '```'
+            echo
+            echo "The queued deploy starts by itself once the runner is back. See deploy/README.md."
+          } >> "$GITHUB_STEP_SUMMARY"
+          exit 1
+
   deploy:
     if: github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.event == 'push'
     runs-on: [self-hosted, pi, familyexpenses]
