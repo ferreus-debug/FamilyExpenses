@@ -271,7 +271,7 @@ Mobil først, da udgifter typisk registreres på telefonen. UI-tekster på dansk
 
 ## 8a. Drift på Raspberry Pi (fase 6 – se `deploy/README.md`)
 
-- **Adresse**: `udgifter.mathiasspangsberg.com` via samme Cloudflare Tunnel som `budget.` og `madplan.mathiasspangsberg.com`.
+- **Adresse**: `turkassen.mathiasspangsberg.com` via samme Cloudflare Tunnel som `budget.` og `madplan.mathiasspangsberg.com`.
 - **Hardware/OS**: Raspberry Pi 4 med 64-bit Raspberry Pi OS (`aarch64`). Appen bruger ca. 140 MB RAM.
 - **Build**: selvstændig `linux-arm64`-udgave (ingen .NET på Pi'en). CI bygger den på hver commit.
 - **Installation**: `deploy/publish-pi.sh bruger@pi [port]` bygger, kopierer og kører `deploy/install-pi.sh` på Pi'en
