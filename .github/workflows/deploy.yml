@@ -1,0 +1,49 @@
+name: Deploy
+
+# Runs after CI has passed on main (i.e. after a pull request is merged) and installs the
+# linux-arm64 build from that CI run on the Raspberry Pi through a self-hosted runner.
+# Never runs for pull requests, so code from unmerged branches never reaches the Pi.
+on:
+  workflow_run:
+    workflows: [CI]
+    types: [completed]
+    branches: [main]
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: deploy-pi
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    if: github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.event == 'push'
+    runs-on: [self-hosted, linux, ARM64, familyexpenses]
+    environment:
+      name: production
+      url: https://turkassen.mathiasspangsberg.com
+    steps:
+      - name: Check out the deployed commit
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.workflow_run.head_sha }}
+          sparse-checkout: deploy
+
+      - name: Download the build from CI
+        uses: actions/download-artifact@v4
+        with:
+          name: familyexpenses-linux-arm64
+          path: release/app
+          run-id: ${{ github.event.workflow_run.id }}
+          github-token: ${{ github.token }}
+
+      - name: Prepare release folder
+        run: |
+          cp -r deploy release/deploy
+          # Artifacts do not keep the executable bit.
+          chmod +x release/app/FamilyExpenses.Web release/deploy/*.sh
+
+      - name: Install on the Pi
+        run: sudo /usr/local/sbin/familyexpenses-deploy "$PWD/release" "${{ vars.PI_PORT || '5080' }}"

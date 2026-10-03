@@ -63,6 +63,31 @@ Under SSL/TLS → Edge Certificates bør **Always Use HTTPS** være slået til (
 Åbn `https://turkassen.mathiasspangsberg.com/Account/Register` og opret dig. **Den første bruger bliver ejer**.
 Derefter kan nye konti kun oprettes via invitationslinks fra appen.
 
+## 4. Automatisk deploy
+
+Når en pull request merges til `main`, kører CI. Er bygget grønt, installerer workflowet
+[`deploy.yml`](../.github/workflows/deploy.yml) den samme `linux-arm64`-build på Pi'en. Det sker gennem en
+GitHub Actions-runner, der kører på Pi'en og selv forbinder ud til GitHub, så intet nyt eksponeres.
+Pull requests deployes aldrig, og `main` er beskyttet: ændringer skal ind via en pull request med grøn CI.
+
+Opsætning (én gang) – på Pi'en, fra en kopi af repoet:
+
+1. GitHub → repoet → **Settings** → **Actions** → **Runners** → **New self-hosted runner**, og kopiér tokenet
+   fra `config.sh`-linjen (gælder i 1 time).
+2. `sudo deploy/setup-runner.sh <token>`
+
+Scriptet opretter brugeren `github-runner`, installerer runneren som systemd-tjeneste (label `familyexpenses`)
+og giver den lov til at køre præcis ét script med sudo: `/usr/local/sbin/familyexpenses-deploy`.
+Bruger appen en anden port end 5080, så sæt repo-variablen `PI_PORT` (Settings → Secrets and variables →
+Actions → Variables).
+
+Deploys kan følges under **Actions** → **Deploy**, og miljøet **production** viser, hvilken commit der kører.
+Svarer appen ikke på `/healthz` efter installationen, fejler deployet – se `journalctl -u familyexpenses -n 50`
+og ret fejlen med en ny pull request (eller revert den seneste).
+
+> Runneren kører kun kode, der er merget til `main`, men den kan installere hvad som helst som root via
+> deploy-scriptet. Giv derfor kun skriveadgang til repoet til folk, du stoler på.
+
 ## Drift
 
 | Opgave | Kommando |
