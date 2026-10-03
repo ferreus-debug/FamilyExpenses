@@ -23,7 +23,7 @@ dotnet ef migrations add <Navn> --project src/FamilyExpenses.Infrastructure --ou
 
 ## Første opstart og invitationer
 
-1. Den **første** bruger opretter sig på `/Account/Register` og bliver ejer af appen.
+1. Den **første** bruger logger ind med Google på `/Account/Register` og bliver ejer af appen (login sker via Firebase-projektet `turkassen`, se `Firebase` i `appsettings.json`).
 2. Derefter kan nye konti **kun** oprettes via et invitationslink (Begivenhed → Invitationer → "Opret link").
 3. Den inviterede åbner linket, opretter konto (eller logger ind) og bliver koblet til sin familie.
 

@@ -233,7 +233,7 @@ Reglerne tjekkes ét sted (`EventAccess`) ved hvert service-kald. Webben leverer
 
 | Route | Indhold |
 |-------|---------|
-| `/Account/Login`, `/Account/Register?invite=…` | Login / opret konto via invitation (Identity) |
+| `/Account/Login`, `/Account/Register?invite=…` | Log ind med Google (Firebase); ny konto kun via invitation |
 | `/` | Mine begivenheder + "Opret ny" |
 | `/events/{id}/invitations` | (Admin) Generér invitationslink pr. familie |
 | `/events/{id}` | Dashboard: husstande, samlet forbrug, seneste udgifter |
