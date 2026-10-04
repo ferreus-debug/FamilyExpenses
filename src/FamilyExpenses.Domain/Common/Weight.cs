@@ -22,12 +22,15 @@ public readonly record struct Weight
 
     public static Weight Child { get; } = new(0.5m);
 
+    public static Weight Baby { get; } = Zero;
+
     public decimal Value { get; }
 
     public static Weight For(ParticipantType type) => type switch
     {
         ParticipantType.Adult => Adult,
         ParticipantType.Child => Child,
+        ParticipantType.Baby => Baby,
         _ => throw new ArgumentOutOfRangeException(nameof(type), type, null),
     };
 

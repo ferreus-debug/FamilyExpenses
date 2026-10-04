@@ -169,6 +169,32 @@ public sealed class ExpenseEventTests
     }
 
     [Fact]
+    public void Expense_must_be_shared_by_someone_who_counts()
+    {
+        var example = CreatePlanExample();
+        var baby = example.Event.AddParticipant(example.C.Id, "Lille Ida", ParticipantType.Baby);
+
+        Should.Throw<DomainException>(() => example.Event.AddExpense("Bleer", Kr(90), Today, example.Carla.Id, [baby.Id], UserId));
+
+        var expense = example.Event.AddExpense("Bleer", Kr(90), Today, example.Carla.Id, [baby.Id, example.Carla.Id], UserId);
+        Should.Throw<DomainException>(() => example.Event.UpdateExpense(expense.Id, "Bleer", Kr(90), Today, example.Carla.Id, [baby.Id]));
+    }
+
+    [Fact]
+    public void Changing_to_baby_is_refused_when_an_expense_would_have_nobody_who_counts()
+    {
+        var example = CreatePlanExample();
+        var baby = example.Event.AddParticipant(example.C.Id, "Lille Ida", ParticipantType.Baby);
+        example.Event.AddExpense("Bleer", Kr(90), Today, example.Carla.Id, [baby.Id, example.Carla.Id], UserId);
+
+        Should.Throw<DomainException>(() => example.Event.UpdateParticipant(example.Carla.Id, "Carla", ParticipantType.Baby));
+        example.Carla.Type.ShouldBe(ParticipantType.Adult);
+
+        example.Event.UpdateParticipant(example.Bo.Id, "Bo", ParticipantType.Baby);
+        example.Bo.Weight.ShouldBe(Weight.Zero);
+    }
+
+    [Fact]
     public void Expense_rules_are_enforced()
     {
         var example = CreatePlanExample();

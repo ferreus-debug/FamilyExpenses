@@ -5,7 +5,7 @@ namespace FamilyExpenses.Domain.Settlements;
 
 /// <summary>
 /// Pure settlement logic. Each expense is split between the households of the people sharing it,
-/// in proportion to their weight (adult 1, child 0.5). All arithmetic is done in øre so totals
+/// in proportion to their weight (adult 1, child 0.5, baby 0). All arithmetic is done in øre so totals
 /// always add up exactly.
 /// </summary>
 public static class SettlementCalculator

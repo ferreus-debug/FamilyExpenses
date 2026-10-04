@@ -84,7 +84,7 @@ else
                                         <span>@p.Name</span>
                                         <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="0">
                                             <MudChip T="string" Size="Size.Small" Variant="Variant.Outlined"
-                                                     Color="@(p.Type == ParticipantType.Adult ? Color.Primary : Color.Tertiary)">
+                                                     Color="@(p.Type switch { ParticipantType.Adult => Color.Primary, ParticipantType.Child => Color.Tertiary, _ => Color.Default })">
                                                 @Format.Type(p.Type)
                                             </MudChip>
                                             @if (canEdit && !isExtra)

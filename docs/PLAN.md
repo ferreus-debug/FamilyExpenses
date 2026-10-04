@@ -11,6 +11,7 @@ Ved afregning vægtes deltagerne:
 |--------------|------|
 | Voksen       | 1,0  |
 | Barn         | 0,5  |
+| Baby         | 0    |
 
 ## 2. Antagelser
 

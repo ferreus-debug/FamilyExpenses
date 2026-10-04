@@ -101,6 +101,7 @@ public sealed class ExpenseEvent
         if (existing is not null)
         {
             EnsureUniqueHouseholdName(name, exceptId: existing.Id);
+            EnsureExpensesKeepWeight(existing.Participants[0], type);
             existing.Participants[0].Update(name, type);
             existing.Rename(name);
             return existing;
@@ -146,6 +147,7 @@ public sealed class ExpenseEvent
             return;
         }
 
+        EnsureExpensesKeepWeight(participant, type);
         participant.Update(name, type);
     }
 
@@ -260,18 +262,39 @@ public sealed class ExpenseEvent
     {
         GetParticipant(paidByParticipantId);
 
-        if (sharedWithParticipantIds is null)
-        {
-            return [.. Participants.Select(p => p.Id)];
-        }
+        var ids = sharedWithParticipantIds is null
+            ? [.. Participants.Select(p => p.Id)]
+            : sharedWithParticipantIds.Distinct().ToList();
 
-        var ids = sharedWithParticipantIds.Distinct().ToList();
-        foreach (var id in ids)
+        // An empty list is reported by Expense itself.
+        if (ids.Count > 0 && ids.Select(id => GetParticipant(id).Weight).Sum() == Weight.Zero)
         {
-            GetParticipant(id);
+            throw new DomainException("Udgiften skal deles med mindst én voksen eller ét barn (babyer tæller 0).");
         }
 
         return ids;
+    }
+
+    /// <summary>
+    /// Every expense must be shared by someone who counts, or it can't be split. Changing a person to a
+    /// type with weight 0 (baby) is refused if that would leave one of their expenses with nobody who counts.
+    /// </summary>
+    private void EnsureExpensesKeepWeight(Participant participant, ParticipantType newType)
+    {
+        if (!Enum.IsDefined(newType) || Weight.For(newType) != Weight.Zero)
+        {
+            return;
+        }
+
+        var participants = Participants.ToDictionary(p => p.Id);
+        var orphaned = _expenses.Any(e =>
+            e.SharedWithParticipantIds.Contains(participant.Id)
+            && e.SharedWithParticipantIds.Where(id => id != participant.Id).All(id => participants[id].Weight == Weight.Zero));
+        if (orphaned)
+        {
+            throw new DomainException(
+                $"{participant.Name} kan ikke ændres til baby, fordi en udgift så ikke deles med nogen der tæller med.");
+        }
     }
 
     private int NextHouseholdSortOrder() =>

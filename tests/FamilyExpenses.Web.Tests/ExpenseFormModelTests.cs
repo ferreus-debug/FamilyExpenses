@@ -32,6 +32,21 @@ public sealed class ExpenseFormModelTests
     }
 
     [Fact]
+    public void Sharing_only_with_babies_is_invalid()
+    {
+        var baby = new ParticipantDto(Guid.NewGuid(), "Lille Ida", ParticipantType.Baby, 0m);
+        var c = new HouseholdDto(Guid.NewGuid(), "Familie C", HouseholdKind.Family, 0m, [baby], []);
+        var model = new ExpenseFormModel([A, B, c], Today, Anna.Id) { Description = "Bleer", Amount = 90m };
+        model.SelectAll(false);
+        model.SetParticipant(baby.Id, true);
+
+        model.Validate().ShouldHaveSingleItem().ShouldContain("babyer tæller 0");
+
+        model.SetParticipant(Anna.Id, true);
+        model.Validate().ShouldBeEmpty();
+    }
+
+    [Fact]
     public void Household_checkbox_is_indeterminate_when_partly_selected()
     {
         var model = NewModel();

@@ -15,5 +15,11 @@ public static class Format
 
     public static string Date(DateOnly date) => date.ToString("d. MMM yyyy", Danish);
 
-    public static string Type(ParticipantType type) => type == ParticipantType.Adult ? "Voksen" : "Barn";
+    public static string Type(ParticipantType type) => type switch
+    {
+        ParticipantType.Adult => "Voksen",
+        ParticipantType.Child => "Barn",
+        ParticipantType.Baby => "Baby",
+        _ => type.ToString(),
+    };
 }
