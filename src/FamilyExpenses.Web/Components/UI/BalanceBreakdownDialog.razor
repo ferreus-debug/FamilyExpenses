@@ -1,0 +1,85 @@
+@* Explains one household's balance expense by expense: what it paid, its share and why (weights). *@
+<MudDialog>
+    <DialogContent>
+        <div data-testid="breakdown">
+            @if (Balance.Expenses.Count == 0)
+            {
+                <MudText Class="mb-4">@Balance.Name har ikke betalt for eller været med i nogen udgifter.</MudText>
+            }
+            else
+            {
+                <MudTable Items="Balance.Expenses" Dense="true" Breakpoint="Breakpoint.Sm" Elevation="0" Class="mb-4">
+                    <HeaderContent>
+                        <MudTh>Udgift</MudTh>
+                        <MudTh Style="text-align:right">Betalt</MudTh>
+                        <MudTh Style="text-align:right">Andel</MudTh>
+                    </HeaderContent>
+                    <RowTemplate>
+                        <MudTd DataLabel="Udgift">
+                            @context.Description
+                            <MudText Typo="Typo.caption" Color="Color.Secondary" Class="d-block" data-testid="breakdown-weights">
+                                @Format.Date(context.Date) · @WeightText(context)
+                            </MudText>
+                        </MudTd>
+                        <MudTd DataLabel="Betalt" Style="text-align:right">@(context.Paid == 0 ? "–" : Format.Money(context.Paid))</MudTd>
+                        <MudTd DataLabel="Andel" Style="text-align:right">@(context.Share == 0 ? "–" : Format.Money(context.Share))</MudTd>
+                    </RowTemplate>
+                    <FooterContent>
+                        <MudTd><strong>I alt</strong></MudTd>
+                        <MudTd Style="text-align:right"><strong>@Format.Money(Balance.Paid)</strong></MudTd>
+                        <MudTd Style="text-align:right"><strong>@Format.Money(Balance.Share)</strong></MudTd>
+                    </FooterContent>
+                </MudTable>
+            }
+
+            <MudSimpleTable Dense="true" Elevation="0" data-testid="breakdown-sum">
+                <tbody>
+                    <tr>
+                        <td>Betalt</td>
+                        <td style="text-align:right">@Format.Money(Balance.Paid)</td>
+                    </tr>
+                    <tr>
+                        <td>Andel af udgifterne</td>
+                        <td style="text-align:right">−@Format.Money(Balance.Share)</td>
+                    </tr>
+                    @foreach (var p in Payments)
+                    {
+                        var sent = p.FromHouseholdId == Balance.HouseholdId;
+                        <tr>
+                            <td>@(sent ? $"Betalt til {p.ToName}" : $"Modtaget fra {p.FromName}") (@Format.Date(p.Date))</td>
+                            <td style="text-align:right">@(sent ? "+" : "−")@Format.Money(p.Amount)</td>
+                        </tr>
+                    }
+                    <tr>
+                        <td><strong>Saldo</strong></td>
+                        <td style="text-align:right"><strong>@(Balance.Balance > 0 ? "+" : "")@Format.Money(Balance.Balance)</strong></td>
+                    </tr>
+                </tbody>
+            </MudSimpleTable>
+            <MudText Typo="Typo.caption" Color="Color.Secondary" Class="mt-2 d-block">
+                Andelen af en udgift er beløbet × husstandens vægt / den samlede vægt af dem, der delte den.
+                Positiv saldo: skal modtage. Negativ: skal betale.
+            </MudText>
+        </div>
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="() => Dialog.Close()">Luk</MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter]
+    private IMudDialogInstance Dialog { get; set; } = default!;
+
+    [Parameter, EditorRequired]
+    public HouseholdBalanceDto Balance { get; set; } = default!;
+
+    /// <summary>The payments the household made or received.</summary>
+    [Parameter]
+    public IReadOnlyList<PaymentDto> Payments { get; set; } = [];
+
+    private static string WeightText(ExpenseShareDto line) =>
+        line.HouseholdWeight is { } weight
+            ? $"vægt {Format.Weight(weight)} af {Format.Weight(line.SharedWeight)}"
+            : "lagt ud for andre";
+}

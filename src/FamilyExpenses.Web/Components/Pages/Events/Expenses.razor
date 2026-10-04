@@ -18,7 +18,7 @@ else
 
     <MudStack Row="true" AlignItems="AlignItems.Center" Justify="Justify.SpaceBetween" Class="mb-4" Wrap="Wrap.Wrap">
         <MudText Typo="Typo.h6">I alt: <span data-testid="expenses-total">@Format.Money(_expenses?.Sum(e => e.Amount) ?? 0)</span></MudText>
-        @if (!Details.IsSettled)
+        @if (!Details.IsLocked)
         {
             <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Add"
                        OnClick="AddAsync" Disabled="!HasParticipants">Tilføj udgift</MudButton>
@@ -58,7 +58,7 @@ else
             <MudTd DataLabel="Betalt af">@context.PaidByName <MudText Typo="Typo.caption" Inline="true">(@context.PaidByHouseholdName)</MudText></MudTd>
             <MudTd DataLabel="Deles mellem">@context.SharedWithSummary</MudTd>
             <MudTd Style="white-space:nowrap">
-                @if (context.CanEdit && !Details.IsSettled)
+                @if (context.CanEdit && !Details.IsLocked)
                 {
                     <MudIconButton Size="Size.Small" Icon="@Icons.Material.Filled.Edit" OnClick="() => EditAsync(context)"
                                    aria-label="@($"Ret {context.Description}")" />

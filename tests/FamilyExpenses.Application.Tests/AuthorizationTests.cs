@@ -35,7 +35,8 @@ public sealed class AuthorizationTests : ServiceTestBase
         App.LogInAs(S.BoUser);
 
         await Should.ThrowAsync<ForbiddenException>(() => App.Events.RenameAsync(S.EventId, "Mit"));
-        await Should.ThrowAsync<ForbiddenException>(() => App.Events.MarkSettledAsync(S.EventId));
+        await Should.ThrowAsync<ForbiddenException>(() => App.Events.CloseAsync(S.EventId));
+        await Should.ThrowAsync<ForbiddenException>(() => App.Events.ReopenAsync(S.EventId));
         await Should.ThrowAsync<ForbiddenException>(() => App.Events.DeleteAsync(S.EventId));
         await Should.ThrowAsync<ForbiddenException>(() => App.Events.JoinHouseholdAsync(S.EventId, S.C));
         await Should.ThrowAsync<ForbiddenException>(() => App.Households.AddFamilyAsync(S.EventId, "D"));

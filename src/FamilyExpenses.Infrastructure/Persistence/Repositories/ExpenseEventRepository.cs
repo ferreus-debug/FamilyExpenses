@@ -28,5 +28,7 @@ internal sealed class ExpenseEventRepository(AppDbContext db) : IExpenseEventRep
             .Include(e => e.Households.OrderBy(h => h.SortOrder))
             .ThenInclude(h => h.Participants.OrderBy(p => p.SortOrder))
             .Include(e => e.Expenses)
+            .Include(e => e.Payments)
+            .Include(e => e.Approvals)
             .AsSplitQuery();
 }

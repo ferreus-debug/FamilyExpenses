@@ -80,7 +80,7 @@ public sealed class ExpensePictureServiceTests : ServiceTestBase
         var pictureId = await Pictures.AddAsync(S.EventId, expenseId, Image, Thumbnail);
 
         App.LogInAs(S.AnnaUser);
-        await App.Events.MarkSettledAsync(S.EventId);
+        await App.Events.CloseAsync(S.EventId);
 
         await Should.ThrowAsync<DomainException>(() => Pictures.AddAsync(S.EventId, expenseId, Image, Thumbnail));
         await Should.ThrowAsync<DomainException>(() => Pictures.RemoveAsync(S.EventId, pictureId));

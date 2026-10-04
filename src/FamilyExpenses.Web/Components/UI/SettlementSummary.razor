@@ -1,59 +1,96 @@
-@* Presentational: who pays whom, and the balance per household. Highlights the user's own household. *@
+@* Presentational: who pays whom, payments made, and the balance per household. Highlights the user's own household. *@
 
-<MudText Typo="Typo.h6" Class="mb-2">Hvem betaler hvem</MudText>
-@if (Settlement.Transfers.Count == 0)
+@* Who pays whom is only worked out once every family has approved. *@
+@if (Settlement.IsSettled)
 {
-    <div class="mb-6" data-testid="no-transfers">
-        @if (Settlement.Total == 0)
-        {
-            <EmptyState Image="img/empty-expenses.webp" Title="Der er ingen udgifter endnu">
-                Når der er lagt ud for noget, vises det her, hvem der skal betale hvem.
-            </EmptyState>
-        }
-        else
-        {
-            <EmptyState Image="img/settled.webp" Title="I er kvit!">
-                Alle har betalt deres andel – ingen skal betale noget.
-            </EmptyState>
-        }
-    </div>
+    <MudText Typo="Typo.h6" Class="mb-2">Hvem betaler hvem</MudText>
+    @if (Settlement.Transfers.Count == 0)
+    {
+        <div class="mb-6" data-testid="no-transfers">
+            @if (Settlement.Total == 0)
+            {
+                <EmptyState Image="img/empty-expenses.webp" Title="Der er ingen udgifter endnu">
+                    Når der er lagt ud for noget, vises det her, hvem der skal betale hvem.
+                </EmptyState>
+            }
+            else
+            {
+                <EmptyState Image="img/settled.webp" Title="I er kvit!">
+                    Alle har betalt deres andel – ingen skal betale noget.
+                </EmptyState>
+            }
+        </div>
+    }
+    else
+    {
+        <MudText Typo="Typo.body2" Color="Color.Secondary" Class="mb-3" data-testid="simplified-debts">
+            Gælden er forenklet: kun hver husstands samlede saldo tæller, så I laver så få overførsler som muligt.
+        </MudText>
+        <MudStack Spacing="2" Class="mb-6">
+            @foreach (var t in Settlement.Transfers)
+            {
+                var mine = t.FromHouseholdId == MyHouseholdId || t.ToHouseholdId == MyHouseholdId;
+                <MudPaper Class="@($"pa-4 d-flex align-center flex-wrap gap-3 {(mine ? "mud-border-primary border-2 border-solid" : "")}")"
+                          Outlined="true" data-testid="transfer">
+                    <MudText Typo="Typo.subtitle1"><strong>@t.FromName</strong></MudText>
+                    <MudIcon Icon="@Icons.Material.Filled.ArrowForward" Color="Color.Primary" />
+                    <MudText Typo="Typo.subtitle1"><strong>@t.ToName</strong></MudText>
+                    <MudSpacer />
+                    <MudText Typo="Typo.h6" data-testid="transfer-amount">@Format.Money(t.Amount)</MudText>
+                    @if (t.FromHouseholdId == MyHouseholdId)
+                    {
+                        <MudChip T="string" Size="Size.Small" Color="Color.Warning">I skal betale</MudChip>
+                    }
+                    else if (t.ToHouseholdId == MyHouseholdId)
+                    {
+                        <MudChip T="string" Size="Size.Small" Color="Color.Success">I skal modtage</MudChip>
+                    }
+                    @if (t.CanMarkPaid && OnMarkPaid.HasDelegate)
+                    {
+                        <MudButton Size="Size.Small" Variant="Variant.Outlined" Color="Color.Primary"
+                                   StartIcon="@Icons.Material.Filled.Check" OnClick="() => OnMarkPaid.InvokeAsync(t)"
+                                   data-testid="mark-paid">Markér som betalt</MudButton>
+                    }
+                </MudPaper>
+            }
+        </MudStack>
+    }
 }
-else
+
+@if (HasPayments)
 {
-    <MudText Typo="Typo.body2" Color="Color.Secondary" Class="mb-3" data-testid="simplified-debts">
-        Gælden er forenklet: kun hver husstands samlede saldo tæller, så I laver så få overførsler som muligt.
-    </MudText>
-    <MudStack Spacing="2" Class="mb-6">
-        @foreach (var t in Settlement.Transfers)
+    <MudText Typo="Typo.h6" Class="mb-2">Betalt</MudText>
+    <MudStack Spacing="1" Class="mb-6">
+        @foreach (var p in Settlement.Payments)
         {
-            var mine = t.FromHouseholdId == MyHouseholdId || t.ToHouseholdId == MyHouseholdId;
-            <MudPaper Class="@($"pa-4 d-flex align-center flex-wrap gap-3 {(mine ? "mud-border-primary border-2 border-solid" : "")}")"
-                      Outlined="true" data-testid="transfer">
-                <MudText Typo="Typo.subtitle1"><strong>@t.FromName</strong></MudText>
-                <MudIcon Icon="@Icons.Material.Filled.ArrowForward" Color="Color.Primary" />
-                <MudText Typo="Typo.subtitle1"><strong>@t.ToName</strong></MudText>
+            <MudPaper Class="px-4 py-2 d-flex align-center flex-wrap gap-2" Outlined="true" data-testid="payment">
+                <MudIcon Icon="@Icons.Material.Filled.CheckCircle" Color="Color.Success" Size="Size.Small" />
+                <MudText Typo="Typo.body2">
+                    <strong>@p.FromName</strong> har betalt <strong>@Format.Money(p.Amount)</strong> til <strong>@p.ToName</strong>
+                </MudText>
+                <MudText Typo="Typo.caption" Color="Color.Secondary">@Format.Date(p.Date) · registreret af @p.CreatedByName</MudText>
                 <MudSpacer />
-                <MudText Typo="Typo.h6" data-testid="transfer-amount">@Format.Money(t.Amount)</MudText>
-                @if (t.FromHouseholdId == MyHouseholdId)
+                @if (p.CanRemove && OnRemovePayment.HasDelegate)
                 {
-                    <MudChip T="string" Size="Size.Small" Color="Color.Warning">I skal betale</MudChip>
-                }
-                else if (t.ToHouseholdId == MyHouseholdId)
-                {
-                    <MudChip T="string" Size="Size.Small" Color="Color.Success">I skal modtage</MudChip>
+                    <MudButton Size="Size.Small" Variant="Variant.Text" StartIcon="@Icons.Material.Filled.Undo"
+                               OnClick="() => OnRemovePayment.InvokeAsync(p)" data-testid="remove-payment">Fortryd</MudButton>
                 }
             </MudPaper>
         }
     </MudStack>
 }
 
-<MudText Typo="Typo.h6" Class="mb-2">Regnestykket</MudText>
+<MudText Typo="Typo.h6" Class="mb-2">@(Settlement.IsSettled ? "Regnestykket" : "Foreløbigt regnestykke")</MudText>
 <MudTable Items="Settlement.Balances" Dense="true" Breakpoint="Breakpoint.Sm" Elevation="1">
     <HeaderContent>
         <MudTh>Husstand</MudTh>
         <MudTh Style="text-align:right">Vægt</MudTh>
         <MudTh Style="text-align:right">Betalt</MudTh>
         <MudTh Style="text-align:right">Andel</MudTh>
+        @if (HasPayments)
+        {
+            <MudTh Style="text-align:right">Overført</MudTh>
+        }
         <MudTh Style="text-align:right">Saldo</MudTh>
     </HeaderContent>
     <RowTemplate>
@@ -65,10 +102,19 @@ else
                     @string.Join(", ", context.PaidByPerson.Select(p => $"{p.Name} {Format.Money(p.Paid)}"))
                 </MudText>
             }
+            @if (OnShowBreakdown.HasDelegate)
+            {
+                <MudLink Typo="Typo.caption" Class="d-block" OnClick="() => OnShowBreakdown.InvokeAsync(context)"
+                         data-testid="show-breakdown">Se udregning</MudLink>
+            }
         </MudTd>
         <MudTd DataLabel="Vægt" Style="text-align:right">@Format.Weight(context.Weight)</MudTd>
         <MudTd DataLabel="Betalt" Style="text-align:right">@Format.Money(context.Paid)</MudTd>
         <MudTd DataLabel="Andel" Style="text-align:right">@Format.Money(context.Share)</MudTd>
+        @if (HasPayments)
+        {
+            <MudTd DataLabel="Overført" Style="text-align:right">@(context.Transferred > 0 ? "+" : "")@Format.Money(context.Transferred)</MudTd>
+        }
         <MudTd DataLabel="Saldo" Style="text-align:right" data-testid="balance">
             <MudText Typo="Typo.body2" Color="@BalanceColor(context.Balance)">
                 <strong>@(context.Balance > 0 ? "+" : "")@Format.Money(context.Balance)</strong>
@@ -80,12 +126,21 @@ else
         <MudTd Style="text-align:right"><strong>@Format.Weight(Settlement.TotalWeight)</strong></MudTd>
         <MudTd Style="text-align:right"><strong>@Format.Money(Settlement.Total)</strong></MudTd>
         <MudTd Style="text-align:right"><strong>@Format.Money(Settlement.Balances.Sum(b => b.Share))</strong></MudTd>
+        @if (HasPayments)
+        {
+            <MudTd></MudTd>
+        }
         <MudTd></MudTd>
     </FooterContent>
 </MudTable>
 <MudText Typo="Typo.caption" Color="Color.Secondary" Class="mt-2 d-block">
     Andelen er summen af husstandens del af hver udgift, fordelt efter vægt blandt dem der delte udgiften
-    (voksen 1, barn 0,5, baby 0). Positiv saldo: skal modtage. Negativ: skal betale.
+    (voksen 1, barn 0,5, baby 0).
+    @if (HasPayments)
+    {
+        <text>Overført er betalinger til andre minus betalinger modtaget.</text>
+    }
+    Positiv saldo: skal modtage. Negativ: skal betale.
 </MudText>
 
 @code {
@@ -94,6 +149,17 @@ else
 
     [Parameter]
     public Guid? MyHouseholdId { get; set; }
+
+    [Parameter]
+    public EventCallback<TransferDto> OnMarkPaid { get; set; }
+
+    [Parameter]
+    public EventCallback<PaymentDto> OnRemovePayment { get; set; }
+
+    [Parameter]
+    public EventCallback<HouseholdBalanceDto> OnShowBreakdown { get; set; }
+
+    private bool HasPayments => Settlement.Payments.Count > 0;
 
     private static Color BalanceColor(decimal balance) =>
         balance > 0 ? Color.Success : balance < 0 ? Color.Error : Color.Default;

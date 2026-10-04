@@ -59,6 +59,18 @@ internal static class EventAccess
         }
     }
 
+    /// <summary>Payments are registered by the paying or receiving household, or the admin.</summary>
+    public static bool CanHandlePayment(EventMember member, Guid fromHouseholdId, Guid toHouseholdId) =>
+        member.IsAdmin || member.HouseholdId == fromHouseholdId || member.HouseholdId == toHouseholdId;
+
+    public static void RequirePaymentAccess(EventMember member, Guid fromHouseholdId, Guid toHouseholdId)
+    {
+        if (!CanHandlePayment(member, fromHouseholdId, toHouseholdId))
+        {
+            throw new ForbiddenException("Kun de to husstande i betalingen kan registrere den.");
+        }
+    }
+
     public static bool CanEdit(EventMember member, Expense expense) =>
         member.IsAdmin || expense.CreatedByUserId == member.UserId;
 

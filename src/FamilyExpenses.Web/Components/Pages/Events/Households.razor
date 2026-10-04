@@ -20,7 +20,7 @@ else
             <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.GroupAdd"
                        OnClick="AddFamilyAsync">Tilføj familie (@Details.Families.Count()/@Details.MaxFamilies)</MudButton>
         }
-        @if (Details.IsAdmin && !Details.IsSettled && Details.ExtraPerson is null)
+        @if (Details.IsAdmin && !Details.IsLocked && Details.ExtraPerson is null)
         {
             <MudButton Variant="Variant.Outlined" Color="Color.Primary" StartIcon="@Icons.Material.Filled.PersonAdd"
                        OnClick="SetExtraPersonAsync">Tilføj ekstra person</MudButton>
@@ -54,7 +54,7 @@ else
                             </MudText>
                         </CardHeaderContent>
                         <CardHeaderActions>
-                            @if (Details.IsAdmin && !Details.IsSettled)
+                            @if (Details.IsAdmin && !Details.IsLocked)
                             {
                                 <MudMenu Icon="@Icons.Material.Filled.MoreVert" AriaLabel="Flere handlinger">
                                     @if (isExtra)
