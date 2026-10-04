@@ -81,7 +81,7 @@ public sealed class SettlementTests : MudTestContext
             Familie B betaler 550,00 kr. til Familie C
             Familie B betaler 250,00 kr. til Familie A
 
-            Voksne tæller 1, børn 0,5.
+            Voksne tæller 1, børn 0,5, babyer 0.
             · Familie A: betalt 4.250,00 kr., andel 3.000,00 kr. (vægt 3)
             · Familie B: betalt 1.700,00 kr., andel 2.500,00 kr. (vægt 2,5)
             · Familie C: betalt 2.550,00 kr., andel 2.000,00 kr. (vægt 2)

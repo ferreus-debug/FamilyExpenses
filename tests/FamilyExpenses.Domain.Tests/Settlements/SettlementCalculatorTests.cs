@@ -49,6 +49,27 @@ public sealed class SettlementCalculatorTests
     }
 
     [Fact]
+    public void Baby_takes_part_but_counts_nothing()
+    {
+        var expenseEvent = new ExpenseEvent("Weekend");
+        var a = expenseEvent.AddFamily("A");
+        var b = expenseEvent.AddFamily("B");
+        var c = expenseEvent.AddFamily("C");
+        var payer = expenseEvent.AddParticipant(a.Id, "Ane", ParticipantType.Adult);
+        expenseEvent.AddParticipant(a.Id, "Lille Alf", ParticipantType.Baby);
+        expenseEvent.AddParticipant(b.Id, "Bent", ParticipantType.Adult);
+        var baby = expenseEvent.AddParticipant(c.Id, "Lille Cille", ParticipantType.Baby);
+        expenseEvent.AddExpense("Mad", Kr(500), Today, payer.Id, null, UserId);
+        expenseEvent.AddExpense("Bleer", Kr(90), Today, baby.Id, [payer.Id], UserId);
+
+        var settlement = expenseEvent.CalculateSettlement();
+
+        ShouldHaveBalance(settlement, a, weight: 1.0m, paid: 500, share: 340, balance: 160);
+        ShouldHaveBalance(settlement, b, weight: 1.0m, paid: 0, share: 250, balance: -250);
+        ShouldHaveBalance(settlement, c, weight: 0m, paid: 90, share: 0, balance: 90);
+    }
+
+    [Fact]
     public void Extra_person_as_child_counts_half()
     {
         var ex = CreatePlanExample();

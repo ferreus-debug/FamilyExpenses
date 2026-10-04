@@ -190,6 +190,10 @@ public sealed class ExpenseFormModel
         {
             errors.Add("Vælg mindst én at dele udgiften med.");
         }
+        else if (SelectedWeight == 0)
+        {
+            errors.Add("Vælg mindst én voksen eller ét barn – babyer tæller 0.");
+        }
 
         return errors;
     }

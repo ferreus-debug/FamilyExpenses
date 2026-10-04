@@ -1,7 +1,7 @@
 # FamilyExpenses
 
 Udgiftsdeling for familier og venner på tur (op til 12 familier/husstande + en ekstra person), bygget i C# og Blazor.
-Voksne tæller 1 og børn 0,5, når udgifterne afregnes. Se [docs/PLAN.md](docs/PLAN.md) for den fulde plan.
+Voksne tæller 1, børn 0,5 og babyer 0, når udgifterne afregnes. Se [docs/PLAN.md](docs/PLAN.md) for den fulde plan.
 
 Hver udgift kan have op til 5 billeder (fx kvitteringen). Telefonen skalerer dem ned til højst 1600 px JPEG før
 upload (og fjerner dermed GPS-data), og de gemmes i databasen, så backup og rollback dækker dem. Kun medlemmer af

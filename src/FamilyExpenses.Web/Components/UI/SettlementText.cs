@@ -28,7 +28,7 @@ public static class SettlementText
         }
 
         text.AppendLine();
-        text.AppendLine("Voksne tæller 1, børn 0,5.");
+        text.AppendLine("Voksne tæller 1, børn 0,5, babyer 0.");
         foreach (var b in settlement.Balances)
         {
             text.Append("· ").Append(b.Name)
