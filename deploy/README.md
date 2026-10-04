@@ -157,6 +157,19 @@ selv op i den gamle registrering.
 | Kør backup nu | `sudo systemctl start familyexpenses-backup` |
 | Se backups | `sudo ls -lh /var/lib/familyexpenses/backups` |
 
+### Læs kvitteringer (valgfrit)
+
+Knappen "Udfyld fra kvittering" i udgiftsformularen sender billedet til Claude (Anthropic) og udfylder
+beskrivelse, beløb og dato. Den vises kun, når der er sat en API-nøgle:
+
+```bash
+sudo nano /etc/familyexpenses/familyexpenses.env   # tilføj: Receipts__AnthropicApiKey=sk-ant-...
+sudo systemctl restart familyexpenses
+```
+
+Nøglen oprettes på console.anthropic.com. Hver kvittering koster omkring 10–20 øre (Claude Opus 5.5, lav effort).
+Model kan ændres med `Receipts__Model`.
+
 ### Gendan fra backup
 
 ```bash
