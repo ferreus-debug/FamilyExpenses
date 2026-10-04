@@ -36,6 +36,16 @@ internal static class TestData
 
         return new PlanExample(expenseEvent, a, b, c, x, anna, bo, carla);
     }
+
+    /// <summary>Closes the event and lets every household approve, so the amounts are final.</summary>
+    public static void Settle(ExpenseEvent expenseEvent)
+    {
+        expenseEvent.Close();
+        foreach (var household in expenseEvent.HouseholdsToApprove.ToList())
+        {
+            expenseEvent.Approve(household.Id, UserId, DateTimeOffset.UnixEpoch);
+        }
+    }
 }
 
 internal sealed record PlanExample(

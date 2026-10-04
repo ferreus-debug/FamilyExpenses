@@ -27,6 +27,17 @@ public static class SettlementText
             }
         }
 
+        if (settlement.Payments.Count > 0)
+        {
+            text.AppendLine();
+            text.AppendLine("Allerede betalt:");
+            foreach (var p in settlement.Payments.OrderBy(p => p.Date))
+            {
+                text.Append("· ").Append(p.FromName).Append(" har betalt ").Append(Format.Money(p.Amount))
+                    .Append(" til ").AppendLine(p.ToName);
+            }
+        }
+
         text.AppendLine();
         text.AppendLine("Voksne tæller 1, børn 0,5, babyer 0.");
         foreach (var b in settlement.Balances)

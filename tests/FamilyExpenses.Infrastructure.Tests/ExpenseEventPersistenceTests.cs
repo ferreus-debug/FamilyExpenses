@@ -30,6 +30,15 @@ public sealed class ExpenseEventPersistenceTests : IAsyncLifetime
         var (expenseEvent, anna, bo, carla) = CreateEvent();
         expenseEvent.AddExpense("Sommerhus", new Money(4250), Today, anna.Id, null, "u1");
         expenseEvent.AddExpense("Restaurant", new Money(300.55m), Today, anna.Id, [bo.Id, carla.Id], "u2");
+        var createdAt = new DateTimeOffset(2026, 7, 2, 10, 0, 0, TimeSpan.Zero);
+        expenseEvent.Close();
+        foreach (var household in expenseEvent.HouseholdsToApprove.ToList())
+        {
+            expenseEvent.Approve(household.Id, "u1", createdAt);
+        }
+
+        expenseEvent.RecordPayment(
+            expenseEvent.Households[1].Id, expenseEvent.Households[0].Id, new Money(100.5m), Today.AddDays(1), "u2", createdAt);
         var expected = expenseEvent.CalculateSettlement();
         await SaveNewAsync(expenseEvent);
 
@@ -49,9 +58,22 @@ public sealed class ExpenseEventPersistenceTests : IAsyncLifetime
         restaurant.SharedWithParticipantIds.ShouldBe([bo.Id, carla.Id], ignoreOrder: true);
         restaurant.CreatedByUserId.ShouldBe("u2");
 
+        loaded.Status.ShouldBe(EventStatus.Settled);
+        loaded.Approvals.Select(a => (a.HouseholdId, a.ApprovedByUserId, a.ApprovedAt))
+            .ShouldBe(expenseEvent.Approvals.Select(a => (a.HouseholdId, a.ApprovedByUserId, a.ApprovedAt)), ignoreOrder: true);
+
+        var payment = loaded.Payments.ShouldHaveSingleItem();
+        payment.FromHouseholdId.ShouldBe(loaded.Households[1].Id);
+        payment.ToHouseholdId.ShouldBe(loaded.Households[0].Id);
+        payment.Amount.ShouldBe(new Money(100.5m));
+        payment.Date.ShouldBe(Today.AddDays(1));
+        payment.CreatedByUserId.ShouldBe("u2");
+        payment.CreatedAt.ShouldBe(createdAt);
+
         var actual = loaded.CalculateSettlement();
         actual.Total.ShouldBe(expected.Total);
-        actual.Balances.ShouldBe(expected.Balances);
+        actual.Balances.Select(b => b with { Expenses = [] }).ShouldBe(expected.Balances.Select(b => b with { Expenses = [] }));
+        actual.Balances.SelectMany(b => b.Expenses).ShouldBe(expected.Balances.SelectMany(b => b.Expenses));
         actual.Transfers.ShouldBe(expected.Transfers);
     }
 
@@ -70,12 +92,12 @@ public sealed class ExpenseEventPersistenceTests : IAsyncLifetime
             loaded.SetExtraPerson("Mormor", ParticipantType.Adult);
             var familyC = loaded.Families.Single(f => f.Name == "Familie C");
             loaded.AddParticipant(familyC.Id, "Cille", ParticipantType.Child);
-            loaded.MarkSettled();
+            loaded.Close();
             await uow.SaveChangesAsync();
         }
 
         var reloaded = await LoadAsync(expenseEvent.Id);
-        reloaded.IsSettled.ShouldBeTrue();
+        reloaded.Status.ShouldBe(EventStatus.Closed);
         reloaded.Expenses.Count.ShouldBe(2);
         var updated = reloaded.GetExpense(expense.Id);
         updated.Description.ShouldBe("Aftensmad");

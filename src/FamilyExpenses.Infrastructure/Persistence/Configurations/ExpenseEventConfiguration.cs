@@ -14,6 +14,10 @@ internal sealed class ExpenseEventConfiguration : IEntityTypeConfiguration<Expen
         builder.Property(e => e.Id).ValueGeneratedNever();
         builder.Property(e => e.Name).HasMaxLength(Guard.MaxNameLength).IsRequired();
         builder.Property(e => e.Currency).HasMaxLength(3).IsRequired();
+        builder.Property(e => e.Status).HasConversion<string>().HasMaxLength(20);
+        builder.Ignore(e => e.IsSettled);
+        builder.Ignore(e => e.IsLocked);
+        builder.Ignore(e => e.HouseholdsToApprove);
 
         builder.Ignore(e => e.Families);
         builder.Ignore(e => e.ExtraPerson);
@@ -32,6 +36,32 @@ internal sealed class ExpenseEventConfiguration : IEntityTypeConfiguration<Expen
             .IsRequired()
             .OnDelete(DeleteBehavior.Cascade);
         builder.Navigation(e => e.Expenses).UsePropertyAccessMode(PropertyAccessMode.Field);
+
+        builder.HasMany(e => e.Payments)
+            .WithOne()
+            .HasForeignKey("EventId")
+            .IsRequired()
+            .OnDelete(DeleteBehavior.Cascade);
+        builder.Navigation(e => e.Payments).UsePropertyAccessMode(PropertyAccessMode.Field);
+
+        builder.HasMany(e => e.Approvals)
+            .WithOne()
+            .HasForeignKey("EventId")
+            .IsRequired()
+            .OnDelete(DeleteBehavior.Cascade);
+        builder.Navigation(e => e.Approvals).UsePropertyAccessMode(PropertyAccessMode.Field);
+    }
+}
+
+internal sealed class HouseholdApprovalConfiguration : IEntityTypeConfiguration<HouseholdApproval>
+{
+    public void Configure(EntityTypeBuilder<HouseholdApproval> builder)
+    {
+        builder.ToTable("HouseholdApprovals");
+        builder.HasKey(a => a.Id);
+        builder.Property(a => a.Id).ValueGeneratedNever();
+        builder.Property(a => a.ApprovedByUserId).HasMaxLength(450).IsRequired();
+        builder.HasOne<Household>().WithMany().HasForeignKey(a => a.HouseholdId).OnDelete(DeleteBehavior.ClientCascade);
     }
 }
 
@@ -88,6 +118,28 @@ internal sealed class ExpenseConfiguration : IEntityTypeConfiguration<Expense>
         builder.PrimitiveCollection(e => e.SharedWithParticipantIds)
             .HasField("_sharedWithParticipantIds")
             .UsePropertyAccessMode(PropertyAccessMode.Field);
+    }
+}
+
+internal sealed class PaymentConfiguration : IEntityTypeConfiguration<Payment>
+{
+    public void Configure(EntityTypeBuilder<Payment> builder)
+    {
+        builder.ToTable("Payments");
+        builder.HasKey(p => p.Id);
+        builder.Property(p => p.Id).ValueGeneratedNever();
+
+        // Stored as whole øre (INTEGER) so SQLite can sum and compare exactly.
+        builder.Property(p => p.Amount)
+            .HasConversion(money => money.MinorUnits, minorUnits => Money.FromMinorUnits(minorUnits))
+            .HasColumnName("AmountMinorUnits");
+
+        builder.Property(p => p.CreatedByUserId).HasMaxLength(450).IsRequired();
+
+        // The domain refuses to remove a household with payments, so the cascade only happens when the whole
+        // event is deleted (EF then deletes the payments before the households).
+        builder.HasOne<Household>().WithMany().HasForeignKey(p => p.FromHouseholdId).OnDelete(DeleteBehavior.ClientCascade);
+        builder.HasOne<Household>().WithMany().HasForeignKey(p => p.ToHouseholdId).OnDelete(DeleteBehavior.ClientCascade);
     }
 }
 

@@ -53,10 +53,7 @@
                                     @(e.MyHouseholdName ?? (e.IsAdmin ? "Administrator" : ""))
                                 </MudText>
                                 <MudText Typo="Typo.h5" Class="mt-2">@Format.Money(e.Total)</MudText>
-                                @if (e.IsSettled)
-                                {
-                                    <MudChip T="string" Size="Size.Small" Color="Color.Success" Icon="@Icons.Material.Filled.Lock">Afregnet</MudChip>
-                                }
+                                <StatusChip Status="e.Status" Size="Size.Small" />
                             </MudCardContent>
                             <MudCardActions>
                                 <MudButton Href="@($"events/{e.Id}")" Color="Color.Primary">Åbn</MudButton>

@@ -5,8 +5,8 @@ namespace FamilyExpenses.Domain.Settlements;
 
 /// <summary>
 /// Pure settlement logic. Each expense is split between the households of the people sharing it,
-/// in proportion to their weight (adult 1, child 0.5, baby 0). All arithmetic is done in øre so totals
-/// always add up exactly.
+/// in proportion to their weight (adult 1, child 0.5, baby 0); payments already made between households
+/// count towards the balances. All arithmetic is done in øre so totals always add up exactly.
 /// </summary>
 public static class SettlementCalculator
 {
@@ -19,24 +19,40 @@ public static class SettlementCalculator
         var order = households.ToDictionary(h => h.Id, h => h.SortOrder);
         var participants = expenseEvent.Participants.ToDictionary(p => p.Id);
 
-        var paid = households.ToDictionary(h => h.Id, _ => 0L);
-        var share = households.ToDictionary(h => h.Id, _ => 0L);
+        var lines = households.ToDictionary(h => h.Id, _ => new List<ExpenseShare>());
 
-        foreach (var expense in expenseEvent.Expenses)
+        foreach (var expense in expenseEvent.Expenses.OrderBy(e => e.Date).ThenBy(e => e.Description, StringComparer.CurrentCulture))
         {
             var amount = expense.Amount.MinorUnits;
-            paid[participants[expense.PaidByParticipantId].HouseholdId] += amount;
+            var payerHouseholdId = participants[expense.PaidByParticipantId].HouseholdId;
 
             var weights = expense.SharedWithParticipantIds
                 .Select(id => participants[id])
                 .GroupBy(p => p.HouseholdId)
                 .Select(g => (HouseholdId: g.Key, Weight: g.Sum(p => p.Weight.Value)))
                 .ToList();
+            var sharedWeight = new Weight(weights.Sum(w => w.Weight));
+            var shares = Allocate(amount, weights, order).ToDictionary(s => s.HouseholdId, s => s.MinorUnits);
+            var householdWeights = weights.ToDictionary(w => w.HouseholdId, w => w.Weight);
 
-            foreach (var (householdId, minorUnits) in Allocate(amount, weights, order))
+            foreach (var householdId in shares.Keys.Append(payerHouseholdId).Distinct())
             {
-                share[householdId] += minorUnits;
+                lines[householdId].Add(new ExpenseShare(
+                    expense.Id,
+                    expense.Description,
+                    expense.Date,
+                    Money.FromMinorUnits(householdId == payerHouseholdId ? amount : 0),
+                    Money.FromMinorUnits(shares.GetValueOrDefault(householdId)),
+                    householdWeights.TryGetValue(householdId, out var weight) ? new Weight(weight) : null,
+                    sharedWeight));
             }
+        }
+
+        var transferred = households.ToDictionary(h => h.Id, _ => Money.Zero);
+        foreach (var payment in expenseEvent.Payments)
+        {
+            transferred[payment.FromHouseholdId] += payment.Amount;
+            transferred[payment.ToHouseholdId] -= payment.Amount;
         }
 
         var balances = households
@@ -44,8 +60,10 @@ public static class SettlementCalculator
                 h.Id,
                 h.Name,
                 h.TotalWeight,
-                Money.FromMinorUnits(paid[h.Id]),
-                Money.FromMinorUnits(share[h.Id])))
+                lines[h.Id].Aggregate(Money.Zero, (sum, l) => sum + l.Paid),
+                lines[h.Id].Aggregate(Money.Zero, (sum, l) => sum + l.Share),
+                transferred[h.Id],
+                lines[h.Id]))
             .ToList();
 
         return new Settlement(balances, MinimizeTransfers(balances, order));

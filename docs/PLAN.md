@@ -45,9 +45,13 @@ Ved afregning vægtes deltagerne:
 5. **Rediger / slet udgift**.
 6. **Afregningsoversigt**:
    - Samlet forbrug, samlet vægt, pris pr. vægtenhed.
-   - Pr. husstand: betalt, andel, saldo (+ skal have / − skal betale).
+   - Pr. husstand: betalt, andel, saldo (+ skal have / − skal betale), og "Se udregning" udgift for udgift.
    - **Minimal liste af overførsler** ("Familie B betaler 550 kr. til Familie C").
-7. **Markér afregning som betalt** (lås begivenheden).
+7. **Afslutning af turen**: Åben → **Lukket** (admin lukker; alt låses) → hver familie med personer
+   og den ekstra person **godkender** → **Afregnet**, når den sidste har godkendt. Først da er overførslerne endelige og vises;
+   indtil da vises regnestykket som foreløbigt. Admin kan godkende på en husstands vegne (fx en ekstra person uden login) og genåbne
+   (godkendelserne nulstilles). Overførsler markeres som betalt af de to husstande eller admin, og betalinger
+   tæller med i saldoen.
 8. **Login og adgang**:
    - Hver familie har én eller flere brugerkonti, som er tilknyttet familiens husstand.
    - Den der opretter begivenheden er **administrator** og inviterer familierne via et invitationslink
@@ -229,7 +233,8 @@ Dette eksempel bliver den første acceptance-test.
 | Opret udgift (også på andres vegne) | ✔ | ✔ | – |
 | Ret/slet udgift | alle | egne | – |
 | Deltagere i egen familie | ✔ | ✔ | – |
-| Familier, ekstra person, invitationer, afregn, slet | ✔ | – | – |
+| Godkend for egen husstand / markér egen overførsel betalt | ✔ (alle) | ✔ | – |
+| Familier, ekstra person, invitationer, luk/genåbn tur, slet | ✔ | – | – |
 
 Reglerne tjekkes ét sted (`EventAccess`) ved hvert service-kald. Webben leverer den indloggede bruger via
 `ICurrentUser` (en `CircuitHandler` holder brugeren opdateret i Blazor-circuits).

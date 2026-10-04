@@ -70,6 +70,58 @@ public sealed class SettlementCalculatorTests
     }
 
     [Fact]
+    public void Payments_count_towards_the_balances_and_shrink_the_transfers()
+    {
+        var ex = CreatePlanExample();
+        ex.Event.AddExpense("Sommerhus", Kr(4250), Today, ex.Anna.Id, null, UserId);
+        ex.Event.AddExpense("Indkøb", Kr(1700), Today, ex.Bo.Id, null, UserId);
+        ex.Event.AddExpense("Restaurant", Kr(2550), Today, ex.Carla.Id, null, UserId);
+        Settle(ex.Event);
+        ex.Event.RecordPayment(ex.B.Id, ex.C.Id, Kr(550), Today, UserId, DateTimeOffset.UnixEpoch);
+
+        var settlement = ex.Event.CalculateSettlement();
+
+        Balance(settlement, ex.B).Transferred.ShouldBe(Kr(550));
+        Balance(settlement, ex.B).Balance.ShouldBe(Kr(-250));
+        Balance(settlement, ex.C).Transferred.ShouldBe(Kr(-550));
+        Balance(settlement, ex.C).Balance.ShouldBe(Money.Zero);
+        settlement.Transfers.ShouldBe(
+        [
+            new Transfer(ex.X.Id, "Xenia", ex.A.Id, "Familie A", Kr(1000)),
+            new Transfer(ex.B.Id, "Familie B", ex.A.Id, "Familie A", Kr(250)),
+        ]);
+
+        ex.Event.RecordPayment(ex.X.Id, ex.A.Id, Kr(1000), Today, UserId, DateTimeOffset.UnixEpoch);
+        ex.Event.RecordPayment(ex.B.Id, ex.A.Id, Kr(250), Today, UserId, DateTimeOffset.UnixEpoch);
+        ex.Event.CalculateSettlement().Transfers.ShouldBeEmpty();
+    }
+
+    [Fact]
+    public void Breakdown_per_household_adds_up_to_paid_and_share()
+    {
+        var ex = CreatePlanExample();
+        var sommerhus = ex.Event.AddExpense("Sommerhus", Kr(4250), Today, ex.Anna.Id, null, UserId);
+        var vin = ex.Event.AddExpense("Vin", Kr(300), Today.AddDays(1), ex.Bo.Id, [ex.Carla.Id, ex.X.Participants[0].Id], UserId);
+
+        var settlement = ex.Event.CalculateSettlement();
+
+        Balance(settlement, ex.A).Expenses.ShouldBe(
+            [new ExpenseShare(sommerhus.Id, "Sommerhus", Today, Kr(4250), Kr(1500), new Weight(3.0m), new Weight(8.5m))]);
+        Balance(settlement, ex.B).Expenses.ShouldBe(
+        [
+            new ExpenseShare(sommerhus.Id, "Sommerhus", Today, Money.Zero, Kr(1250), new Weight(2.5m), new Weight(8.5m)),
+            new ExpenseShare(vin.Id, "Vin", Today.AddDays(1), Kr(300), Money.Zero, null, new Weight(2.0m)),
+        ]);
+        Balance(settlement, ex.X).Expenses.Select(e => e.Share).ShouldBe([Kr(500), Kr(150)]);
+
+        foreach (var balance in settlement.Balances)
+        {
+            balance.Expenses.Aggregate(Money.Zero, (sum, e) => sum + e.Paid).ShouldBe(balance.Paid);
+            balance.Expenses.Aggregate(Money.Zero, (sum, e) => sum + e.Share).ShouldBe(balance.Share);
+        }
+    }
+
+    [Fact]
     public void Extra_person_as_child_counts_half()
     {
         var ex = CreatePlanExample();

@@ -15,33 +15,19 @@ else
     <MudText Typo="Typo.h4" Class="mb-2">@Details.Name</MudText>
     <EventTabs EventId="EventId" Active="settlement" IsAdmin="Details.IsAdmin" />
 
+    <ApprovalStatus Status="Details.Status" Approvals="Details.Approvals" IsAdmin="Details.IsAdmin"
+                    MyHouseholdId="Details.MyHouseholdId" OnClose="CloseAsync" OnReopen="ReopenAsync"
+                    OnApprove="ApproveAsync" OnWithdraw="WithdrawAsync" />
+
     @if (Details.IsSettled)
     {
-        <MudAlert Severity="Severity.Success" Icon="@Icons.Material.Filled.Lock" Class="mb-4">
-            Begivenheden er afregnet og låst. @(Details.IsAdmin ? "Genåbn den, hvis noget skal rettes." : "")
-        </MudAlert>
-    }
-
-    <MudStack Row="true" Spacing="2" Class="mb-4" Wrap="Wrap.Wrap">
-        <MudButton Variant="Variant.Outlined" StartIcon="@Icons.Material.Filled.ContentCopy" OnClick="CopyAsync">
+        <MudButton Variant="Variant.Outlined" StartIcon="@Icons.Material.Filled.ContentCopy" OnClick="CopyAsync" Class="mb-4">
             Kopiér som tekst
         </MudButton>
-        @if (Details.IsAdmin)
-        {
-            @if (Details.IsSettled)
-            {
-                <MudButton Variant="Variant.Outlined" Color="Color.Warning" StartIcon="@Icons.Material.Filled.LockOpen"
-                           OnClick="ReopenAsync">Genåbn</MudButton>
-            }
-            else if (_settlement.Total > 0)
-            {
-                <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Lock"
-                           OnClick="MarkSettledAsync">Markér som afregnet</MudButton>
-            }
-        }
-    </MudStack>
+    }
 
-    <SettlementSummary Settlement="_settlement" MyHouseholdId="Details.MyHouseholdId" />
+    <SettlementSummary Settlement="_settlement" MyHouseholdId="Details.MyHouseholdId"
+                       OnMarkPaid="MarkPaidAsync" OnRemovePayment="RemovePaymentAsync" OnShowBreakdown="ShowBreakdownAsync" />
 }
 
 @code {
@@ -56,12 +42,13 @@ else
         }
     }
 
-    private async Task MarkSettledAsync()
+    private async Task CloseAsync()
     {
-        if (await ConfirmAsync("Markér som afregnet",
-                "Når begivenheden er afregnet, kan ingen ændre udgifter eller husstande, før den genåbnes. Fortsæt?",
-                "Markér som afregnet") == true
-            && await RunAsync(() => Events.MarkSettledAsync(EventId), "Begivenheden er markeret som afregnet."))
+        if (await ConfirmAsync("Luk turen",
+                "Er alle udgifter registreret? Når turen er lukket, kan ingen ændre udgifter eller husstande, og hver familie "
+                + "og den ekstra person skal godkende. Når alle har godkendt, beregnes det endeligt, hvem der betaler hvem.",
+                "Luk turen") == true
+            && await RunAsync(() => Events.CloseAsync(EventId), "Turen er lukket – nu skal alle godkende."))
         {
             await ReloadAsync();
         }
@@ -69,11 +56,73 @@ else
 
     private async Task ReopenAsync()
     {
-        if (await RunAsync(() => Events.ReopenAsync(EventId), "Begivenheden er genåbnet."))
+        if (await ConfirmAsync("Genåbn turen",
+                "Turen åbnes for ændringer igen, og alle godkendelser nulstilles. Registrerede betalinger bevares.",
+                "Genåbn") == true
+            && await RunAsync(() => Events.ReopenAsync(EventId), "Turen er genåbnet."))
         {
             await ReloadAsync();
         }
     }
+
+    private async Task ApproveAsync(ApprovalDto approval)
+    {
+        if (await ConfirmAsync($"Godkend for {approval.Name}",
+                $"Har {approval.Name} tjekket udgifterne, og er de korrekte? Når alle har godkendt, er beløbene endelige.",
+                "Godkend") == true
+            && await RunAsync(() => Events.ApproveAsync(EventId, approval.HouseholdId), $"{approval.Name} har godkendt."))
+        {
+            await ReloadAsync();
+        }
+    }
+
+    private async Task WithdrawAsync(ApprovalDto approval)
+    {
+        if (await RunAsync(() => Events.WithdrawApprovalAsync(EventId, approval.HouseholdId), "Godkendelsen er trukket tilbage."))
+        {
+            await ReloadAsync();
+        }
+    }
+
+    private async Task MarkPaidAsync(TransferDto transfer)
+    {
+        if (await ConfirmAsync("Markér som betalt",
+                $"Har {transfer.FromName} betalt {Format.Money(transfer.Amount)} til {transfer.ToName}?",
+                "Ja, det er betalt") == true
+            && await RunAsync(
+                () => SettlementService.RecordPaymentAsync(EventId, transfer.FromHouseholdId, transfer.ToHouseholdId, transfer.Amount),
+                "Betalingen er registreret."))
+        {
+            await ReloadAsync();
+        }
+    }
+
+    private async Task RemovePaymentAsync(PaymentDto payment)
+    {
+        if (await ConfirmAsync("Fortryd betaling",
+                $"Vil du fjerne betalingen på {Format.Money(payment.Amount)} fra {payment.FromName} til {payment.ToName}?",
+                "Fjern") == true
+            && await RunAsync(() => SettlementService.RemovePaymentAsync(EventId, payment.Id), "Betalingen er fjernet."))
+        {
+            await ReloadAsync();
+        }
+    }
+
+    private async Task ShowBreakdownAsync(HouseholdBalanceDto balance) =>
+        await Dialogs.ShowAsync<BalanceBreakdownDialog>(
+            $"Sådan er saldoen for {balance.Name} regnet ud",
+            new DialogParameters<BalanceBreakdownDialog>
+            {
+                { d => d.Balance, balance },
+                {
+                    d => d.Payments,
+                    _settlement!.Payments
+                        .Where(p => p.FromHouseholdId == balance.HouseholdId || p.ToHouseholdId == balance.HouseholdId)
+                        .OrderBy(p => p.Date)
+                        .ToList()
+                },
+            },
+            new DialogOptions { MaxWidth = MaxWidth.Medium, FullWidth = true, CloseOnEscapeKey = true, CloseButton = true });
 
     private async Task CopyAsync()
     {

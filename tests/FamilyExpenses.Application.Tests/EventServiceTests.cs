@@ -46,35 +46,37 @@ public sealed class EventServiceTests : ServiceTestBase
 
         var mine = await App.Events.ListMineAsync();
 
-        mine.ShouldHaveSingleItem().ShouldBe(new(S.EventId, "Sommerhus 2026", false, false, "Familie B", 120.50m));
+        mine.ShouldHaveSingleItem().ShouldBe(new(S.EventId, "Sommerhus 2026", EventStatus.Open, false, "Familie B", 120.50m));
 
         App.LogInAs(S.DorteUser);
         (await App.Events.ListMineAsync()).ShouldBeEmpty();
     }
 
     [Fact]
-    public async Task Admin_can_rename_settle_reopen_and_delete()
+    public async Task Admin_can_rename_close_reopen_and_delete()
     {
         App.LogInAs(S.AnnaUser);
 
         await App.Events.RenameAsync(S.EventId, "Sommerhus Skagen");
-        await App.Events.MarkSettledAsync(S.EventId);
-        (await App.Events.GetAsync(S.EventId)).IsSettled.ShouldBeTrue();
+        await App.Events.CloseAsync(S.EventId);
+        (await App.Events.GetAsync(S.EventId)).Status.ShouldBe(EventStatus.Closed);
+        (await App.Events.ListMineAsync()).ShouldHaveSingleItem().Status.ShouldBe(EventStatus.Closed);
 
         await App.Events.ReopenAsync(S.EventId);
         var details = await App.Events.GetAsync(S.EventId);
         details.Name.ShouldBe("Sommerhus Skagen");
-        details.IsSettled.ShouldBeFalse();
+        details.Status.ShouldBe(EventStatus.Open);
+        details.Approvals.ShouldBeEmpty();
 
         await App.Events.DeleteAsync(S.EventId);
         await Should.ThrowAsync<NotFoundException>(() => App.Events.GetAsync(S.EventId));
     }
 
     [Fact]
-    public async Task Settled_event_rejects_changes_from_everyone()
+    public async Task Closed_event_rejects_changes_from_everyone()
     {
         App.LogInAs(S.AnnaUser);
-        await App.Events.MarkSettledAsync(S.EventId);
+        await App.Events.CloseAsync(S.EventId);
 
         App.LogInAs(S.BoUser);
         await Should.ThrowAsync<DomainException>(

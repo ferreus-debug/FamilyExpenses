@@ -1,0 +1,104 @@
+@* Presentational: where the event is in open → closed (everyone approves) → settled, with the actions the user may take. *@
+
+@switch (Status)
+{
+    case EventStatus.Open:
+        <MudAlert Severity="Severity.Info" Class="mb-4" data-testid="status-open">
+            <MudText Typo="Typo.body2">
+                <strong>Turen er i gang – tallene herunder er foreløbige.</strong>
+                Når turen er slut og alle har registreret deres udgifter, lukker administratoren den.
+                Derefter godkender hver familie og den ekstra person udgifterne, og så beregnes det endeligt, hvem der
+                betaler hvem.
+            </MudText>
+            @if (IsAdmin && OnClose.HasDelegate)
+            {
+                <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Lock" Class="mt-3"
+                           OnClick="OnClose" data-testid="close-event">Luk turen</MudButton>
+            }
+        </MudAlert>
+        break;
+
+    case EventStatus.Closed:
+        <MudAlert Severity="Severity.Warning" Icon="@Icons.Material.Filled.HourglassTop" Class="mb-4" data-testid="status-closed">
+            <strong>Turen er lukket.</strong> Hver familie og den ekstra person skal tjekke udgifterne og godkende –
+            @ApprovedCount af @Approvals.Count har godkendt. Når alle har godkendt, beregnes beløbene endeligt.
+        </MudAlert>
+        break;
+
+    case EventStatus.Settled:
+        <MudAlert Severity="Severity.Success" Icon="@Icons.Material.Filled.Lock" Class="mb-4" data-testid="status-settled">
+            <strong>Alle har godkendt – beløbene er endelige.</strong>
+            Markér overførslerne som betalt, efterhånden som I betaler hinanden.
+        </MudAlert>
+        break;
+}
+
+@if (Status != EventStatus.Open)
+{
+    <MudStack Spacing="1" Class="mb-4">
+        @foreach (var a in Approvals)
+        {
+            <MudPaper Class="px-4 py-2 d-flex align-center flex-wrap gap-2" Outlined="true" data-testid="approval">
+                <MudText Typo="Typo.subtitle1"><strong>@a.Name</strong></MudText>
+                @if (a.IsApproved)
+                {
+                    <MudChip T="string" Size="Size.Small" Color="Color.Success" Icon="@Icons.Material.Filled.Check">Godkendt</MudChip>
+                    <MudText Typo="Typo.caption" Color="Color.Secondary">af @a.ApprovedByName</MudText>
+                }
+                else
+                {
+                    <MudChip T="string" Size="Size.Small" Color="Color.Warning" Variant="Variant.Outlined">Mangler</MudChip>
+                }
+                <MudSpacer />
+                @if (Status == EventStatus.Closed && a.CanApprove)
+                {
+                    @if (a.IsApproved)
+                    {
+                        <MudButton Size="Size.Small" Variant="Variant.Text" StartIcon="@Icons.Material.Filled.Undo"
+                                   OnClick="() => OnWithdraw.InvokeAsync(a)" data-testid="withdraw">Træk tilbage</MudButton>
+                    }
+                    else
+                    {
+                        <MudButton Size="Size.Small" Variant="Variant.Filled" Color="Color.Primary"
+                                   StartIcon="@Icons.Material.Filled.Check" OnClick="() => OnApprove.InvokeAsync(a)"
+                                   data-testid="approve">@(a.HouseholdId == MyHouseholdId ? "Godkend" : "Godkend på deres vegne")</MudButton>
+                    }
+                }
+            </MudPaper>
+        }
+    </MudStack>
+
+    @if (IsAdmin && OnReopen.HasDelegate)
+    {
+        <MudButton Variant="Variant.Outlined" Color="Color.Warning" StartIcon="@Icons.Material.Filled.LockOpen" Class="mb-4"
+                   OnClick="OnReopen" data-testid="reopen">Genåbn turen</MudButton>
+    }
+}
+
+@code {
+    [Parameter, EditorRequired]
+    public EventStatus Status { get; set; }
+
+    [Parameter]
+    public IReadOnlyList<ApprovalDto> Approvals { get; set; } = [];
+
+    [Parameter]
+    public bool IsAdmin { get; set; }
+
+    [Parameter]
+    public Guid? MyHouseholdId { get; set; }
+
+    [Parameter]
+    public EventCallback OnClose { get; set; }
+
+    [Parameter]
+    public EventCallback OnReopen { get; set; }
+
+    [Parameter]
+    public EventCallback<ApprovalDto> OnApprove { get; set; }
+
+    [Parameter]
+    public EventCallback<ApprovalDto> OnWithdraw { get; set; }
+
+    private int ApprovedCount => Approvals.Count(a => a.IsApproved);
+}

@@ -176,9 +176,37 @@ await annasRow.waitFor();
 if (await annasRow.getByRole('button').count() !== 0) throw new Error('Bo kan rette Annas udgift');
 
 // Øre are rounded per expense (largest remainder), so e.g. A gets +1 øre on both shared expenses.
-step('Afregning: Anna ser saldi og overførsler med præcise beløb');
+step('Afregning: Anna ser foreløbige saldi, lukker turen og alle godkender');
 await anna.goto(`${eventUrl}/settlement`);
 await ready(anna);
+await anna.getByText('Foreløbigt regnestykke').waitFor();
+if (await anna.getByTestId('transfer').count() !== 0) throw new Error('Overførsler vises før godkendelse');
+await bo.goto(eventUrl);
+await ready(bo);
+await bo.getByTestId('my-balance').getByText('I har lagt 1.076,34 kr. mindre ud end jeres andel').waitFor();
+await anna.getByRole('button', { name: 'Luk turen' }).click();
+await anna.locator('.mud-dialog').getByRole('button', { name: 'Luk turen' }).click();
+await anna.getByText('0 af 4 har godkendt', { exact: false }).waitFor();
+await bo.goto(`${eventUrl}/expenses`);
+await ready(bo);
+await bo.getByText('Indkøb Netto').waitFor();
+if (await bo.getByRole('button', { name: 'Tilføj udgift' }).count() !== 0) throw new Error('Kan tilføje udgift efter lukning');
+if (await bo.getByRole('button', { name: /Ret Indkøb Netto/ }).count() !== 0) throw new Error('Kan rette udgift efter lukning');
+await bo.goto(`${eventUrl}/settlement`);
+await ready(bo);
+await bo.getByRole('button', { name: 'Godkend', exact: true }).click();
+await bo.locator('.mud-dialog').getByRole('button', { name: 'Godkend' }).click();
+await anna.reload();
+await ready(anna);
+// Anna approves for Familie A, and on behalf of Familie C and the extra person.
+for (let i = 0; i < 3; i++) {
+  await anna.getByRole('button', { name: /^Godkend/ }).first().click();
+  await anna.locator('.mud-dialog').getByRole('button', { name: 'Godkend' }).click();
+  await anna.waitForTimeout(500);
+}
+await anna.getByText('Alle har godkendt').waitFor();
+
+step('Afregning: Anna ser de endelige overførsler med præcise beløb');
 const amounts = await anna.getByTestId('transfer-amount').allInnerTexts();
 if (JSON.stringify(amounts) !== JSON.stringify(['1.084,55 kr.', '1.076,34 kr.', '522,27 kr.']))
   throw new Error(`Uventede overførsler: ${amounts}`);
@@ -193,17 +221,17 @@ await bo.goto(eventUrl);
 await ready(bo);
 await bo.getByTestId('my-balance').getByText('I skal betale 1.076,34 kr. til Familie A').waitFor();
 
-step('Anna markerer som afregnet – alt låses – og genåbner');
-await anna.getByRole('button', { name: 'Markér som afregnet' }).click();
-await anna.locator('.mud-dialog').getByRole('button', { name: 'Markér som afregnet' }).click();
-await anna.getByText('Begivenheden er afregnet og låst.').waitFor();
-await bo.goto(`${eventUrl}/expenses`);
+step('Bo markerer sin overførsel som betalt; Anna genåbner turen');
+await bo.goto(`${eventUrl}/settlement`);
 await ready(bo);
-await bo.getByText('Indkøb Netto').waitFor();
-if (await bo.getByRole('button', { name: 'Tilføj udgift' }).count() !== 0) throw new Error('Kan tilføje udgift efter afregning');
-if (await bo.getByRole('button', { name: /Ret Indkøb Netto/ }).count() !== 0) throw new Error('Kan rette udgift efter afregning');
-await anna.getByRole('button', { name: 'Genåbn' }).click();
-await anna.getByRole('button', { name: 'Markér som afregnet' }).waitFor();
+await bo.getByTestId('mark-paid').first().click();
+await bo.locator('.mud-dialog').getByRole('button', { name: 'Ja, det er betalt' }).click();
+await bo.getByTestId('payment').getByText('Familie B har betalt', { exact: false }).waitFor();
+await anna.reload();
+await ready(anna);
+await anna.getByRole('button', { name: 'Genåbn turen' }).click();
+await anna.locator('.mud-dialog').getByRole('button', { name: 'Genåbn' }).click();
+await anna.getByRole('button', { name: 'Luk turen' }).waitFor();
 
 step('Bo logger ud og ind igen');
 await bo.goto(`${BASE}/`);

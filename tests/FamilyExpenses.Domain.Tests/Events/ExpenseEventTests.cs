@@ -195,6 +195,130 @@ public sealed class ExpenseEventTests
     }
 
     [Fact]
+    public void Payments_are_recorded_and_removed()
+    {
+        var example = CreatePlanExample();
+        Settle(example.Event);
+        var payment = example.Event.RecordPayment(example.B.Id, example.A.Id, Kr(250), Today, UserId, DateTimeOffset.UnixEpoch);
+
+        example.Event.Payments.ShouldBe([payment]);
+        example.Event.RemovePayment(payment.Id);
+        example.Event.Payments.ShouldBeEmpty();
+    }
+
+    [Fact]
+    public void Payment_rules_are_enforced()
+    {
+        var example = CreatePlanExample();
+        var expenseEvent = example.Event;
+        Settle(expenseEvent);
+
+        Should.Throw<DomainException>(() => expenseEvent.RecordPayment(example.A.Id, example.A.Id, Kr(10), Today, UserId, DateTimeOffset.UnixEpoch));
+        Should.Throw<DomainException>(() => expenseEvent.RecordPayment(example.A.Id, example.B.Id, Money.Zero, Today, UserId, DateTimeOffset.UnixEpoch));
+        Should.Throw<DomainException>(() => expenseEvent.RecordPayment(example.A.Id, Guid.NewGuid(), Kr(10), Today, UserId, DateTimeOffset.UnixEpoch));
+        Should.Throw<DomainException>(() => expenseEvent.RecordPayment(example.A.Id, example.B.Id, Kr(10), Today, " ", DateTimeOffset.UnixEpoch));
+        Should.Throw<DomainException>(() => expenseEvent.RemovePayment(Guid.NewGuid()));
+    }
+
+    [Fact]
+    public void Payments_need_every_family_to_have_approved()
+    {
+        var example = CreatePlanExample();
+        void Pay() => example.Event.RecordPayment(example.B.Id, example.A.Id, Kr(250), Today, UserId, DateTimeOffset.UnixEpoch);
+
+        Should.Throw<DomainException>(Pay);
+        example.Event.Close();
+        Should.Throw<DomainException>(Pay);
+
+        example.Event.Reopen();
+        Settle(example.Event);
+        Pay();
+        example.Event.Payments.ShouldHaveSingleItem();
+    }
+
+    [Fact]
+    public void Household_with_payments_cannot_be_removed()
+    {
+        var expenseEvent = new ExpenseEvent("Weekend");
+        var a = expenseEvent.AddFamily("A");
+        var b = expenseEvent.AddFamily("B");
+        expenseEvent.AddParticipant(a.Id, "Ane", ParticipantType.Adult);
+        var x = expenseEvent.SetExtraPerson("Mormor", ParticipantType.Adult);
+        Settle(expenseEvent);
+        expenseEvent.RecordPayment(a.Id, b.Id, Kr(10), Today, UserId, DateTimeOffset.UnixEpoch);
+        expenseEvent.RecordPayment(x.Id, a.Id, Kr(10), Today, UserId, DateTimeOffset.UnixEpoch);
+        expenseEvent.Reopen();
+
+        expenseEvent.Payments.Count.ShouldBe(2);
+        Should.Throw<DomainException>(() => expenseEvent.RemoveFamily(b.Id));
+        Should.Throw<DomainException>(() => expenseEvent.RemoveExtraPerson());
+    }
+
+    [Fact]
+    public void Closed_event_is_settled_when_the_last_family_approves()
+    {
+        var example = CreatePlanExample();
+        var expenseEvent = example.Event;
+        expenseEvent.AddFamily("Tom familie");
+        expenseEvent.Close();
+
+        expenseEvent.Status.ShouldBe(EventStatus.Closed);
+        expenseEvent.HouseholdsToApprove.ShouldBe([example.A, example.B, example.C, example.X]);
+        expenseEvent.Approve(example.A.Id, "anna", DateTimeOffset.UnixEpoch);
+        expenseEvent.Approve(example.B.Id, "bo", DateTimeOffset.UnixEpoch);
+        expenseEvent.IsSettled.ShouldBeFalse();
+
+        expenseEvent.WithdrawApproval(example.B.Id);
+        expenseEvent.IsApproved(example.B.Id).ShouldBeFalse();
+        expenseEvent.Approve(example.B.Id, "bo", DateTimeOffset.UnixEpoch);
+        expenseEvent.Approve(example.C.Id, "carla", DateTimeOffset.UnixEpoch);
+        expenseEvent.IsSettled.ShouldBeFalse();
+        expenseEvent.Approve(example.X.Id, "xenia", DateTimeOffset.UnixEpoch);
+
+        expenseEvent.Status.ShouldBe(EventStatus.Settled);
+        expenseEvent.Approvals.Select(a => a.ApprovedByUserId).ShouldBe(["anna", "bo", "carla", "xenia"]);
+    }
+
+    [Fact]
+    public void Approval_rules_are_enforced()
+    {
+        var example = CreatePlanExample();
+        var expenseEvent = example.Event;
+        var empty = expenseEvent.AddFamily("Tom familie");
+        var approve = (Guid id) => expenseEvent.Approve(id, UserId, DateTimeOffset.UnixEpoch);
+
+        Should.Throw<DomainException>(() => approve(example.A.Id));
+        expenseEvent.Close();
+        Should.Throw<DomainException>(() => expenseEvent.Close());
+        Should.Throw<DomainException>(() => approve(empty.Id));
+        Should.Throw<DomainException>(() => approve(Guid.NewGuid()));
+        Should.Throw<DomainException>(() => expenseEvent.Approve(example.A.Id, " ", DateTimeOffset.UnixEpoch));
+        Should.Throw<DomainException>(() => expenseEvent.WithdrawApproval(example.A.Id));
+        approve(example.A.Id);
+        Should.Throw<DomainException>(() => approve(example.A.Id));
+        approve(example.B.Id);
+        approve(example.C.Id);
+        approve(example.X.Id);
+
+        Should.Throw<DomainException>(() => expenseEvent.WithdrawApproval(example.A.Id));
+        Should.Throw<DomainException>(() => new ExpenseEvent("Tom").Close());
+    }
+
+    [Fact]
+    public void Reopening_drops_the_approvals()
+    {
+        var example = CreatePlanExample();
+        Settle(example.Event);
+
+        example.Event.Reopen();
+
+        example.Event.Status.ShouldBe(EventStatus.Open);
+        example.Event.Approvals.ShouldBeEmpty();
+        example.Event.Close();
+        example.Event.IsApproved(example.A.Id).ShouldBeFalse();
+    }
+
+    [Fact]
     public void Expense_rules_are_enforced()
     {
         var example = CreatePlanExample();
@@ -230,10 +354,10 @@ public sealed class ExpenseEventTests
     }
 
     [Fact]
-    public void Settled_event_is_locked_until_reopened()
+    public void Closed_event_is_locked_until_reopened()
     {
         var example = CreatePlanExample();
-        example.Event.MarkSettled();
+        example.Event.Close();
 
         Should.Throw<DomainException>(() => example.Event.AddExpense("Mad", Kr(10), Today, example.Anna.Id, null, UserId));
         Should.Throw<DomainException>(() => example.Event.AddFamily("D"));

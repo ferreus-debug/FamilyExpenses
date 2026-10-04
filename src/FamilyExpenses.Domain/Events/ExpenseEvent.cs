@@ -14,6 +14,8 @@ public sealed class ExpenseEvent
 
     private readonly List<Household> _households = [];
     private readonly List<Expense> _expenses = [];
+    private readonly List<Payment> _payments = [];
+    private readonly List<HouseholdApproval> _approvals = [];
 
     public ExpenseEvent(string name, string currency = "DKK")
     {
@@ -34,12 +36,26 @@ public sealed class ExpenseEvent
 
     public string Currency { get; private set; }
 
-    /// <summary>When settled, the event is locked for changes until it is reopened.</summary>
-    public bool IsSettled { get; private set; }
+    public EventStatus Status { get; private set; }
+
+    /// <summary>Every family has approved; who pays whom is final.</summary>
+    public bool IsSettled => Status == EventStatus.Settled;
+
+    /// <summary>Closed or settled: nothing can be changed until the event is reopened.</summary>
+    public bool IsLocked => Status != EventStatus.Open;
 
     public IReadOnlyList<Household> Households => _households;
 
     public IReadOnlyList<Expense> Expenses => _expenses;
+
+    public IReadOnlyList<Payment> Payments => _payments;
+
+    public IReadOnlyList<HouseholdApproval> Approvals => _approvals;
+
+    /// <summary>
+    /// The households that must approve a closed event: every family with people in it, and the extra person.
+    /// </summary>
+    public IEnumerable<Household> HouseholdsToApprove => _households.Where(h => h.Participants.Count > 0);
 
     public IEnumerable<Household> Families => _households.Where(h => h.Kind == HouseholdKind.Family);
 
@@ -87,6 +103,7 @@ public sealed class ExpenseEvent
         }
 
         EnsureNotReferenced(family.Participants, "Familien");
+        EnsureNoPayments(family, "Familien");
         _households.Remove(family);
     }
 
@@ -119,6 +136,7 @@ public sealed class ExpenseEvent
         EnsureOpen();
         var extra = ExtraPerson ?? throw new DomainException("Der er ingen ekstra person.");
         EnsureNotReferenced(extra.Participants, "Den ekstra person");
+        EnsureNoPayments(extra, "Den ekstra person");
         _households.Remove(extra);
     }
 
@@ -232,17 +250,111 @@ public sealed class ExpenseEvent
     /// <summary>Pictures can't be removed from a settled event either.</summary>
     public void EnsurePicturesCanChange() => EnsureOpen();
 
+    // ---- Payments ---------------------------------------------------------------------------
+    // Only once the amounts are final, i.e. when every household has approved.
+
+    public Payment RecordPayment(
+        Guid fromHouseholdId,
+        Guid toHouseholdId,
+        Money amount,
+        DateOnly date,
+        string createdByUserId,
+        DateTimeOffset createdAt)
+    {
+        if (!IsSettled)
+        {
+            throw new DomainException("Betalinger kan først registreres, når alle har godkendt.");
+        }
+
+        GetHousehold(fromHouseholdId);
+        GetHousehold(toHouseholdId);
+        var payment = new Payment(fromHouseholdId, toHouseholdId, amount, date, createdByUserId, createdAt);
+        _payments.Add(payment);
+        return payment;
+    }
+
+    public void RemovePayment(Guid paymentId) => _payments.Remove(GetPayment(paymentId));
+
+    public Payment GetPayment(Guid paymentId) =>
+        _payments.SingleOrDefault(p => p.Id == paymentId)
+        ?? throw new DomainException("Betalingen findes ikke i begivenheden.");
+
     // ---- Settlement -------------------------------------------------------------------------
 
     public Settlement CalculateSettlement() => SettlementCalculator.Calculate(this);
 
-    public void MarkSettled()
+    // ---- Closing & approval -----------------------------------------------------------------
+
+    /// <summary>The trip is over: locks the event so every family can check and approve the expenses.</summary>
+    public void Close()
     {
         EnsureOpen();
-        IsSettled = true;
+        if (!HouseholdsToApprove.Any())
+        {
+            throw new DomainException("Tilføj mindst én familie med personer, før turen lukkes.");
+        }
+
+        _approvals.Clear();
+        Status = EventStatus.Closed;
     }
 
-    public void Reopen() => IsSettled = false;
+    /// <summary>A household approves the expenses. When the last one does, the amounts become final.</summary>
+    public HouseholdApproval Approve(Guid householdId, string approvedByUserId, DateTimeOffset approvedAt)
+    {
+        if (Status != EventStatus.Closed)
+        {
+            throw new DomainException(IsSettled
+                ? "Alle har allerede godkendt."
+                : "Turen skal lukkes, før der kan godkendes.");
+        }
+
+        if (string.IsNullOrWhiteSpace(approvedByUserId))
+        {
+            throw new DomainException("Godkendelsen skal have en bruger.");
+        }
+
+        var household = GetHousehold(householdId);
+        if (!HouseholdsToApprove.Contains(household))
+        {
+            throw new DomainException($"{household.Name} har ingen personer og skal ikke godkende.");
+        }
+
+        if (IsApproved(householdId))
+        {
+            throw new DomainException($"{household.Name} har allerede godkendt.");
+        }
+
+        var approval = new HouseholdApproval(householdId, approvedByUserId, approvedAt);
+        _approvals.Add(approval);
+        if (HouseholdsToApprove.All(h => IsApproved(h.Id)))
+        {
+            Status = EventStatus.Settled;
+        }
+
+        return approval;
+    }
+
+    /// <summary>Takes a household's approval back, as long as the others have not all approved yet.</summary>
+    public void WithdrawApproval(Guid householdId)
+    {
+        if (Status != EventStatus.Closed)
+        {
+            throw new DomainException("En godkendelse kan kun trækkes tilbage, mens der ventes på de andre.");
+        }
+
+        var approval = _approvals.SingleOrDefault(a => a.HouseholdId == householdId)
+            ?? throw new DomainException("Husstanden har ikke godkendt.");
+        _approvals.Remove(approval);
+    }
+
+    public bool IsApproved(Guid householdId) => _approvals.Any(a => a.HouseholdId == householdId);
+
+    /// <summary>Opens the event for changes again; all approvals are dropped. Registered payments stay.</summary>
+    public void Reopen()
+    {
+        _approvals.Clear();
+        Status = EventStatus.Open;
+    }
 
     // ---- Lookups & rules --------------------------------------------------------------------
 
@@ -302,9 +414,11 @@ public sealed class ExpenseEvent
 
     private void EnsureOpen()
     {
-        if (IsSettled)
+        if (IsLocked)
         {
-            throw new DomainException("Begivenheden er afregnet og kan ikke ændres. Genåbn den først.");
+            throw new DomainException(IsSettled
+                ? "Begivenheden er afregnet og kan ikke ændres. Genåbn den først."
+                : "Turen er lukket og venter på godkendelse. Genåbn den for at ændre noget.");
         }
     }
 
@@ -314,6 +428,14 @@ public sealed class ExpenseEvent
         if (_households.Any(h => h.Id != exceptId && string.Equals(h.Name, name, StringComparison.OrdinalIgnoreCase)))
         {
             throw new DomainException($"Der findes allerede en husstand med navnet '{name}'.");
+        }
+    }
+
+    private void EnsureNoPayments(Household household, string who)
+    {
+        if (_payments.Any(p => p.References(household.Id)))
+        {
+            throw new DomainException($"{who} har registrerede betalinger og kan ikke fjernes.");
         }
     }
 

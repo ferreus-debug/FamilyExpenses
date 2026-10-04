@@ -6,7 +6,11 @@ using FamilyExpenses.Domain.Events;
 
 namespace FamilyExpenses.Application.Events;
 
-public sealed class EventService(IUnitOfWorkFactory uowFactory, ICurrentUser currentUser, IUserDirectory users)
+public sealed class EventService(
+    IUnitOfWorkFactory uowFactory,
+    ICurrentUser currentUser,
+    IUserDirectory users,
+    TimeProvider time)
 {
     /// <summary>Creates an event; the creator becomes its administrator.</summary>
     public async Task<Guid> CreateAsync(string name, CancellationToken cancellationToken = default)
@@ -36,7 +40,7 @@ public sealed class EventService(IUnitOfWorkFactory uowFactory, ICurrentUser cur
             result.Add(new EventSummary(
                 expenseEvent.Id,
                 expenseEvent.Name,
-                expenseEvent.IsSettled,
+                expenseEvent.Status,
                 member.IsAdmin,
                 myHousehold?.Name,
                 total.Amount));
@@ -50,7 +54,9 @@ public sealed class EventService(IUnitOfWorkFactory uowFactory, ICurrentUser cur
         await using var uow = uowFactory.Create();
         var (expenseEvent, member) = await uow.LoadForMemberAsync(currentUser, eventId, cancellationToken);
         var members = await uow.Members.ListForEventAsync(eventId, cancellationToken);
-        var names = await users.GetDisplayNamesAsync(members.Select(m => m.UserId), cancellationToken);
+        var names = await users.GetDisplayNamesAsync(
+            members.Select(m => m.UserId).Concat(expenseEvent.Approvals.Select(a => a.ApprovedByUserId)).Distinct(),
+            cancellationToken);
 
         var households = expenseEvent.Households
             .OrderBy(h => h.SortOrder)
@@ -68,25 +74,64 @@ public sealed class EventService(IUnitOfWorkFactory uowFactory, ICurrentUser cur
                     .Order(StringComparer.CurrentCulture)]))
             .ToList();
 
+        var approvals = expenseEvent.IsLocked
+            ? expenseEvent.HouseholdsToApprove
+                .OrderBy(h => h.SortOrder)
+                .Select(h =>
+                {
+                    var approval = expenseEvent.Approvals.SingleOrDefault(a => a.HouseholdId == h.Id);
+                    return new ApprovalDto(
+                        h.Id,
+                        h.Name,
+                        approval is not null,
+                        approval is null ? null : names.GetValueOrDefault(approval.ApprovedByUserId, "Ukendt"),
+                        approval?.ApprovedAt,
+                        member.IsAdmin || member.HouseholdId == h.Id);
+                })
+                .ToList()
+            : [];
+
         return new EventDetails(
             expenseEvent.Id,
             expenseEvent.Name,
             expenseEvent.Currency,
-            expenseEvent.IsSettled,
+            expenseEvent.Status,
             member.IsAdmin,
             member.HouseholdId,
             ExpenseEvent.MaxFamilies,
-            households);
+            households,
+            approvals);
     }
 
     public Task RenameAsync(Guid eventId, string name, CancellationToken cancellationToken = default) =>
         AsAdminAsync(eventId, (e, _) => e.Rename(name), cancellationToken);
 
-    public Task MarkSettledAsync(Guid eventId, CancellationToken cancellationToken = default) =>
-        AsAdminAsync(eventId, (e, _) => e.MarkSettled(), cancellationToken);
+    /// <summary>The trip is over: locks the event and asks every family and the extra person to approve.</summary>
+    public Task CloseAsync(Guid eventId, CancellationToken cancellationToken = default) =>
+        AsAdminAsync(eventId, (e, _) => e.Close(), cancellationToken);
 
+    /// <summary>Opens the event for changes again and drops all approvals.</summary>
     public Task ReopenAsync(Guid eventId, CancellationToken cancellationToken = default) =>
         AsAdminAsync(eventId, (e, _) => e.Reopen(), cancellationToken);
+
+    /// <summary>A household approves its expenses (the admin may do it on its behalf, e.g. without a login).</summary>
+    public async Task ApproveAsync(Guid eventId, Guid householdId, CancellationToken cancellationToken = default)
+    {
+        await using var uow = uowFactory.Create();
+        var (expenseEvent, member) = await uow.LoadForMemberAsync(currentUser, eventId, cancellationToken);
+        EventAccess.RequireHouseholdAccess(member, householdId);
+        expenseEvent.Approve(householdId, member.UserId, time.GetUtcNow());
+        await uow.SaveChangesAsync(cancellationToken);
+    }
+
+    public async Task WithdrawApprovalAsync(Guid eventId, Guid householdId, CancellationToken cancellationToken = default)
+    {
+        await using var uow = uowFactory.Create();
+        var (expenseEvent, member) = await uow.LoadForMemberAsync(currentUser, eventId, cancellationToken);
+        EventAccess.RequireHouseholdAccess(member, householdId);
+        expenseEvent.WithdrawApproval(householdId);
+        await uow.SaveChangesAsync(cancellationToken);
+    }
 
     public async Task DeleteAsync(Guid eventId, CancellationToken cancellationToken = default)
     {
