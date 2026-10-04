@@ -69,6 +69,42 @@ public sealed class ExpenseFormModel
 
     public void RemovePicture(NewPicture picture) => _newPictures.Remove(picture);
 
+    /// <summary>
+    /// Fills in the fields from a read receipt: the description only if it is still empty, the amount
+    /// and date whenever they were read. Returns the message to show the user.
+    /// </summary>
+    public string ApplyReceipt(ReceiptReading? reading)
+    {
+        if (reading is null)
+        {
+            return "Kvitteringen kunne ikke læses. Udfyld felterne selv.";
+        }
+
+        if (string.IsNullOrWhiteSpace(Description) && reading.Description is not null)
+        {
+            Description = reading.Description;
+        }
+
+        if (reading.TotalInKroner is { } total)
+        {
+            Amount = total;
+        }
+
+        if (reading.Date is { } date)
+        {
+            Date = date.ToDateTime(TimeOnly.MinValue);
+        }
+
+        if (reading.IsForeignCurrency)
+        {
+            return $"Kvitteringen er i {reading.Currency} ({Format.Amount(reading.Total!.Value)}). Skriv beløbet i kroner.";
+        }
+
+        return reading.TotalInKroner is null
+            ? "Beløbet kunne ikke læses. Tjek felterne og skriv beløbet."
+            : "Udfyldt fra kvitteringen. Tjek at det passer.";
+    }
+
     public static ExpenseFormModel ForEdit(IReadOnlyList<HouseholdDto> households, ExpenseDto expense)
     {
         ArgumentNullException.ThrowIfNull(expense);

@@ -1,6 +1,8 @@
+using Anthropic;
 using FamilyExpenses.Application.Abstractions;
 using FamilyExpenses.Infrastructure.Identity;
 using FamilyExpenses.Infrastructure.Persistence;
+using FamilyExpenses.Infrastructure.Receipts;
 using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
@@ -46,6 +48,19 @@ public static class DependencyInjection
             .AddClaimsPrincipalFactory<AppUserClaimsPrincipalFactory>()
             .AddSignInManager()
             .AddDefaultTokenProviders();
+
+        // Reading receipts with Claude is optional: without an API key the form simply has no button for it.
+        var receiptOptions = configuration.GetSection(ReceiptOptions.SectionName).Get<ReceiptOptions>() ?? new ReceiptOptions();
+        if (string.IsNullOrWhiteSpace(receiptOptions.AnthropicApiKey))
+        {
+            services.AddSingleton<IReceiptReader, DisabledReceiptReader>();
+        }
+        else
+        {
+            services.AddSingleton(receiptOptions);
+            services.AddSingleton(_ => new AnthropicClient { ApiKey = receiptOptions.AnthropicApiKey });
+            services.AddSingleton<IReceiptReader, ClaudeReceiptReader>();
+        }
 
         // Keys survive restarts, so login cookies stay valid after the Pi reboots.
         services.AddDataProtection()
