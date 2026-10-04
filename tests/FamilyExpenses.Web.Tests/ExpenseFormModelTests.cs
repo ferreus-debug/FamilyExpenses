@@ -148,6 +148,56 @@ public sealed class ExpenseFormModelTests
     public void New_picture_preview_is_the_thumbnail_as_a_data_url() =>
         new NewPicture([0xFF, 0xD8, 0xFF], [1, 2, 3]).PreviewUrl.ShouldBe("data:image/jpeg;base64,AQID");
 
+    [Fact]
+    public void Receipt_fills_in_description_amount_and_date()
+    {
+        var model = NewModel();
+
+        var message = model.ApplyReceipt(new ReceiptReading("Netto – dagligvarer", 312.75m, "DKK", new DateOnly(2026, 6, 28)));
+
+        model.Description.ShouldBe("Netto – dagligvarer");
+        model.Amount.ShouldBe(312.75m);
+        model.Date.ShouldBe(new DateTime(2026, 6, 28));
+        message.ShouldBe("Udfyldt fra kvitteringen. Tjek at det passer.");
+    }
+
+    [Fact]
+    public void Receipt_keeps_a_description_the_user_already_wrote()
+    {
+        var model = NewModel();
+        model.Description = "Is til børnene";
+
+        model.ApplyReceipt(new ReceiptReading("Kiosken", 45m, "DKK", null));
+
+        model.Description.ShouldBe("Is til børnene");
+        model.Amount.ShouldBe(45m);
+        model.Date.ShouldBe(new DateTime(2026, 7, 1));
+    }
+
+    [Fact]
+    public void Receipt_in_foreign_currency_leaves_the_amount_for_the_user()
+    {
+        var model = NewModel();
+
+        var message = model.ApplyReceipt(new ReceiptReading("Rewe", 23.4m, "EUR", null));
+
+        model.Amount.ShouldBeNull();
+        model.Description.ShouldBe("Rewe");
+        message.ShouldBe("Kvitteringen er i EUR (23,40). Skriv beløbet i kroner.");
+    }
+
+    [Fact]
+    public void Unreadable_receipt_changes_nothing()
+    {
+        var model = NewModel();
+
+        var message = model.ApplyReceipt(null);
+
+        model.Description.ShouldBeEmpty();
+        model.Amount.ShouldBeNull();
+        message.ShouldBe("Kvitteringen kunne ikke læses. Udfyld felterne selv.");
+    }
+
     private static NewPicture Picture() => new([0xFF, 0xD8, 0xFF, 1], [0xFF, 0xD8, 0xFF, 2]);
 
     private sealed class InputComparer : IEqualityComparer<ExpenseInput>

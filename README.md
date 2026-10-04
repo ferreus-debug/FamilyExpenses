@@ -7,6 +7,10 @@ Hver udgift kan have op til 5 billeder (fx kvitteringen). Telefonen skalerer dem
 upload (og fjerner dermed GPS-data), og de gemmes i databasen, så backup og rollback dækker dem. Kun medlemmer af
 begivenheden kan se dem (`/pictures/{id}`).
 
+"Udfyld fra kvittering" læser et billede af kvitteringen med Claude og udfylder beskrivelse, beløb og dato
+(beløb kun i kroner – andre valutaer skal man selv omregne). Funktionen er slået fra, indtil der er sat en
+Anthropic API-nøgle i `Receipts:AnthropicApiKey` (miljøvariablen `Receipts__AnthropicApiKey`).
+
 ## Kom i gang
 
 Kræver [.NET 10 SDK](https://dotnet.microsoft.com/download).

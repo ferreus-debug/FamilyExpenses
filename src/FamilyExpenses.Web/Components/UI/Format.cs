@@ -10,6 +10,9 @@ public static class Format
     /// <summary>1234.5 → "1.234,50 kr."</summary>
     public static string Money(decimal amount) => amount.ToString("N2", Danish) + " kr.";
 
+    /// <summary>12.5 → "12,50" (no currency, e.g. for amounts in euro)</summary>
+    public static string Amount(decimal amount) => amount.ToString("N2", Danish);
+
     /// <summary>2.5 → "2,5"</summary>
     public static string Weight(decimal weight) => weight.ToString("0.##", Danish);
 

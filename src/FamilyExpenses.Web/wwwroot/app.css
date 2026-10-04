@@ -235,6 +235,25 @@
     cursor: pointer;
 }
 
+/* "Udfyld fra kvittering" at the top of the expense form: a big tap target that opens the camera/photos. */
+.fe-receipt-scan {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: .5rem;
+    min-height: 48px;
+    padding: .5rem 1rem;
+    border: 1px dashed var(--mud-palette-primary);
+    border-radius: var(--mud-default-borderradius);
+    color: var(--mud-palette-primary);
+    font-weight: 500;
+    cursor: pointer;
+}
+
+.fe-receipt-scan-busy {
+    cursor: progress;
+}
+
 .fe-picture-full {
     display: block;
     width: 100%;

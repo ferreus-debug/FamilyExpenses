@@ -1,6 +1,29 @@
+@inject ReceiptService Receipts
+
 <MudDialog>
     <DialogContent>
         <MudStack Spacing="2">
+            @if (Receipts.IsAvailable && (Model.CanAddPicture || _readingReceipt))
+            {
+                @* Takes the photo, keeps it as a picture on the expense and fills in the fields from it. *@
+                <label class="fe-receipt-scan @(_readingReceipt ? "fe-receipt-scan-busy" : null)" data-testid="scan-receipt">
+                    @if (_readingReceipt)
+                    {
+                        <MudProgressCircular Indeterminate="true" Size="Size.Small" />
+                        <span>Læser kvitteringen …</span>
+                    }
+                    else
+                    {
+                        <MudIcon Icon="@Icons.Material.Filled.DocumentScanner" />
+                        <span>Udfyld fra kvittering</span>
+                        <InputFile OnChange="ScanReceiptAsync" accept="image/*" hidden />
+                    }
+                </label>
+            }
+            @if (_receiptMessage is not null)
+            {
+                <MudAlert Severity="_receiptSeverity" Dense="true" data-testid="receipt-message">@_receiptMessage</MudAlert>
+            }
             <MudTextField @bind-Value="Model.Description" Label="Hvad var det?" Placeholder="Fx indkøb, sommerhus, is"
                           MaxLength="200" AutoFocus="true" Immediate="true" />
             <MudStack Row="true" Spacing="2">
@@ -110,7 +133,7 @@
     </DialogContent>
     <DialogActions>
         <MudButton OnClick="() => Dialog.Cancel()">Annullér</MudButton>
-        <MudButton Color="Color.Primary" Variant="Variant.Filled" OnClick="Submit" Disabled="_readingPictures">Gem</MudButton>
+        <MudButton Color="Color.Primary" Variant="Variant.Filled" OnClick="Submit" Disabled="_readingPictures || _readingReceipt">Gem</MudButton>
     </DialogActions>
 </MudDialog>
 
@@ -126,6 +149,9 @@
     private IReadOnlyList<string> _errors = [];
     private bool _readingPictures;
     private string? _pictureError;
+    private bool _readingReceipt;
+    private string? _receiptMessage;
+    private Severity _receiptSeverity;
 
     private string PayerName(Guid? id) =>
         Model.Households.SelectMany(h => h.Participants.Select(p => (p, h)))
@@ -177,6 +203,41 @@
         {
             _pictureError = failed == 1 ? "Et billede kunne ikke læses." : $"{failed} billeder kunne ikke læses.";
         }
+    }
+
+    private async Task ScanReceiptAsync(InputFileChangeEventArgs e)
+    {
+        _readingReceipt = true;
+        _receiptMessage = null;
+        try
+        {
+            NewPicture picture;
+            try
+            {
+                picture = new NewPicture(
+                    await ReadJpegAsync(e.File, 1600, ExpensePicture.MaxImageBytes),
+                    await ReadJpegAsync(e.File, 320, ExpensePicture.MaxThumbnailBytes));
+            }
+            catch (Exception ex) when (ex is IOException or InvalidOperationException or JSException)
+            {
+                ShowReceiptMessage("Billedet kunne ikke læses.", Severity.Warning);
+                return;
+            }
+
+            Model.AddPicture(picture);
+            var reading = await Receipts.ReadAsync(picture.Image);
+            ShowReceiptMessage(Model.ApplyReceipt(reading), reading?.TotalInKroner is null ? Severity.Warning : Severity.Info);
+        }
+        finally
+        {
+            _readingReceipt = false;
+        }
+    }
+
+    private void ShowReceiptMessage(string message, Severity severity)
+    {
+        _receiptMessage = message;
+        _receiptSeverity = severity;
     }
 
     // The browser shrinks and re-encodes the photo (canvas → JPEG) before it is sent: a phone photo of
