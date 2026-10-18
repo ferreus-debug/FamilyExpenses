@@ -16,5 +16,7 @@ public abstract class EventPageBase : AppComponentBase
 
     protected override async Task OnParametersSetAsync() => await ReloadAsync();
 
+    protected override Task OnConcurrencyConflictAsync() => ReloadAsync();
+
     protected virtual async Task ReloadAsync() => Details = await LoadAsync(() => Events.GetAsync(EventId));
 }

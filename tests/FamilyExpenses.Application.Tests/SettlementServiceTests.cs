@@ -68,6 +68,45 @@ public sealed class SettlementServiceTests : ServiceTestBase
     }
 
     [Fact]
+    public async Task A_transfer_marked_as_paid_from_a_stale_page_is_not_paid_twice()
+    {
+        await AddPlanExpensesAsync();
+        await SettleAsync();
+
+        // Bo and Carla both have the page open showing "Familie B → Familie C 550" and both press the button.
+        App.LogInAs(S.BoUser);
+        var stale = (await App.Settlements.GetAsync(S.EventId)).Transfers.Single(t => t.ToHouseholdId == S.C);
+        await App.Settlements.RecordPaymentAsync(S.EventId, stale.FromHouseholdId, stale.ToHouseholdId, stale.Amount);
+
+        App.LogInAs(S.CarlaUser);
+        var refused = await Should.ThrowAsync<DomainException>(
+            () => App.Settlements.RecordPaymentAsync(S.EventId, stale.FromHouseholdId, stale.ToHouseholdId, stale.Amount));
+        refused.Message.ShouldContain("Familie B skylder ikke Familie C noget");
+
+        var after = await App.Settlements.GetAsync(S.EventId);
+        after.Payments.ShouldHaveSingleItem().Amount.ShouldBe(550m);
+        after.Balances.Single(b => b.HouseholdId == S.C).Balance.ShouldBe(0m);
+    }
+
+    [Fact]
+    public async Task A_payment_cannot_be_larger_than_what_is_still_owed()
+    {
+        await AddPlanExpensesAsync();
+        await SettleAsync();
+
+        App.LogInAs(S.BoUser);
+        var refused = await Should.ThrowAsync<DomainException>(() => App.Settlements.RecordPaymentAsync(S.EventId, S.B, S.A, 250.01m));
+        refused.Message.ShouldContain("Familie B skylder kun Familie A 250,00 DKK");
+
+        // Paying in instalments is fine, as long as the total stays within what is owed.
+        await App.Settlements.RecordPaymentAsync(S.EventId, S.B, S.A, 100m);
+        await Should.ThrowAsync<DomainException>(() => App.Settlements.RecordPaymentAsync(S.EventId, S.B, S.A, 250m));
+        await App.Settlements.RecordPaymentAsync(S.EventId, S.B, S.A, 150m);
+
+        (await App.Settlements.GetAsync(S.EventId)).Transfers.ShouldNotContain(t => t.FromHouseholdId == S.B && t.ToHouseholdId == S.A);
+    }
+
+    [Fact]
     public async Task Only_the_two_households_or_the_admin_handle_a_payment()
     {
         await AddPlanExpensesAsync();

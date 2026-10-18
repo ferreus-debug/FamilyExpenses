@@ -17,7 +17,7 @@ else
 
     <ApprovalStatus Status="Details.Status" Approvals="Details.Approvals" IsAdmin="Details.IsAdmin"
                     MyHouseholdId="Details.MyHouseholdId" OnClose="CloseAsync" OnReopen="ReopenAsync"
-                    OnApprove="ApproveAsync" OnWithdraw="WithdrawAsync" />
+                    OnApprove="ApproveAsync" OnWithdraw="WithdrawAsync" Disabled="Busy" />
 
     @if (Details.IsSettled)
     {
@@ -26,7 +26,7 @@ else
         </MudButton>
     }
 
-    <SettlementSummary Settlement="_settlement" MyHouseholdId="Details.MyHouseholdId"
+    <SettlementSummary Settlement="_settlement" MyHouseholdId="Details.MyHouseholdId" Disabled="Busy"
                        OnMarkPaid="MarkPaidAsync" OnRemovePayment="RemovePaymentAsync" OnShowBreakdown="ShowBreakdownAsync" />
 }
 

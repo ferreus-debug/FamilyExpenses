@@ -37,3 +37,24 @@ public sealed class ForbiddenException : Exception
     {
     }
 }
+
+/// <summary>Someone else changed the same data at the same time; the change was not saved and can be retried.</summary>
+public sealed class ConcurrencyConflictException : Exception
+{
+    public const string DefaultMessage = "Nogen har lige ændret turen – prøv igen.";
+
+    public ConcurrencyConflictException()
+        : this(DefaultMessage)
+    {
+    }
+
+    public ConcurrencyConflictException(string message)
+        : base(message)
+    {
+    }
+
+    public ConcurrencyConflictException(string message, Exception innerException)
+        : base(message, innerException)
+    {
+    }
+}

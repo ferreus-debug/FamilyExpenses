@@ -48,7 +48,7 @@
                     @if (t.CanMarkPaid && OnMarkPaid.HasDelegate)
                     {
                         <MudButton Size="Size.Small" Variant="Variant.Outlined" Color="Color.Primary"
-                                   StartIcon="@Icons.Material.Filled.Check" OnClick="() => OnMarkPaid.InvokeAsync(t)"
+                                   StartIcon="@Icons.Material.Filled.Check" OnClick="() => OnMarkPaid.InvokeAsync(t)" Disabled="Disabled"
                                    data-testid="mark-paid">Markér som betalt</MudButton>
                     }
                 </MudPaper>
@@ -73,7 +73,7 @@
                 @if (p.CanRemove && OnRemovePayment.HasDelegate)
                 {
                     <MudButton Size="Size.Small" Variant="Variant.Text" StartIcon="@Icons.Material.Filled.Undo"
-                               OnClick="() => OnRemovePayment.InvokeAsync(p)" data-testid="remove-payment">Fortryd</MudButton>
+                               OnClick="() => OnRemovePayment.InvokeAsync(p)" Disabled="Disabled" data-testid="remove-payment">Fortryd</MudButton>
                 }
             </MudPaper>
         }
@@ -149,6 +149,10 @@
 
     [Parameter]
     public Guid? MyHouseholdId { get; set; }
+
+    /// <summary>A change is being saved: the action buttons are disabled so it isn't sent twice.</summary>
+    [Parameter]
+    public bool Disabled { get; set; }
 
     [Parameter]
     public EventCallback<TransferDto> OnMarkPaid { get; set; }

@@ -15,6 +15,10 @@ internal sealed class ExpenseEventConfiguration : IEntityTypeConfiguration<Expen
         builder.Property(e => e.Name).HasMaxLength(Guard.MaxNameLength).IsRequired();
         builder.Property(e => e.Currency).HasMaxLength(3).IsRequired();
         builder.Property(e => e.Status).HasConversion<string>().HasMaxLength(20);
+
+        // Optimistic concurrency for the whole aggregate: AppDbContext bumps it whenever anything in the event
+        // changes, so two saves based on the same version can't both win.
+        builder.Property<long>(AppDbContext.EventVersion).IsConcurrencyToken();
         builder.Ignore(e => e.IsSettled);
         builder.Ignore(e => e.IsLocked);
         builder.Ignore(e => e.HouseholdsToApprove);
@@ -62,6 +66,7 @@ internal sealed class HouseholdApprovalConfiguration : IEntityTypeConfiguration<
         builder.Property(a => a.Id).ValueGeneratedNever();
         builder.Property(a => a.ApprovedByUserId).HasMaxLength(450).IsRequired();
         builder.HasOne<Household>().WithMany().HasForeignKey(a => a.HouseholdId).OnDelete(DeleteBehavior.ClientCascade);
+        builder.HasIndex("EventId", nameof(HouseholdApproval.HouseholdId)).IsUnique();
     }
 }
 
