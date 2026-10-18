@@ -171,6 +171,20 @@ public sealed class SettlementTests : MudTestContext
     }
 
     [Fact]
+    public void Buttons_are_disabled_while_a_change_is_being_saved()
+    {
+        var cut = Render<SettlementSummary>(p => p
+            .Add(s => s.Settlement, PartlyPaid)
+            .Add(s => s.Disabled, true)
+            .Add(s => s.OnMarkPaid, (TransferDto _) => { })
+            .Add(s => s.OnRemovePayment, (PaymentDto _) => { }));
+
+        var buttons = cut.FindAll("[data-testid=mark-paid], [data-testid=remove-payment]");
+        buttons.Count.ShouldBe(2);
+        buttons.ShouldAllBe(b => b.HasAttribute("disabled"));
+    }
+
+    [Fact]
     public void Shows_payments_made_and_what_is_left()
     {
         PaymentDto? removed = null;

@@ -143,6 +143,10 @@ namespace FamilyExpenses.Infrastructure.Persistence.Migrations
                         .HasMaxLength(20)
                         .HasColumnType("TEXT");
 
+                    b.Property<long>("Version")
+                        .IsConcurrencyToken()
+                        .HasColumnType("INTEGER");
+
                     b.HasKey("Id");
 
                     b.ToTable("Events", (string)null);
@@ -233,9 +237,10 @@ namespace FamilyExpenses.Infrastructure.Persistence.Migrations
 
                     b.HasKey("Id");
 
-                    b.HasIndex("EventId");
-
                     b.HasIndex("HouseholdId");
+
+                    b.HasIndex("EventId", "HouseholdId")
+                        .IsUnique();
 
                     b.ToTable("HouseholdApprovals", (string)null);
                 });

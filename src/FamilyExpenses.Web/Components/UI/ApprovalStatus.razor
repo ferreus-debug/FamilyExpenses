@@ -13,7 +13,7 @@
             @if (IsAdmin && OnClose.HasDelegate)
             {
                 <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Lock" Class="mt-3"
-                           OnClick="OnClose" data-testid="close-event">Luk turen</MudButton>
+                           OnClick="OnClose" Disabled="Disabled" data-testid="close-event">Luk turen</MudButton>
             }
         </MudAlert>
         break;
@@ -55,12 +55,12 @@
                     @if (a.IsApproved)
                     {
                         <MudButton Size="Size.Small" Variant="Variant.Text" StartIcon="@Icons.Material.Filled.Undo"
-                                   OnClick="() => OnWithdraw.InvokeAsync(a)" data-testid="withdraw">Træk tilbage</MudButton>
+                                   OnClick="() => OnWithdraw.InvokeAsync(a)" Disabled="Disabled" data-testid="withdraw">Træk tilbage</MudButton>
                     }
                     else
                     {
                         <MudButton Size="Size.Small" Variant="Variant.Filled" Color="Color.Primary"
-                                   StartIcon="@Icons.Material.Filled.Check" OnClick="() => OnApprove.InvokeAsync(a)"
+                                   StartIcon="@Icons.Material.Filled.Check" OnClick="() => OnApprove.InvokeAsync(a)" Disabled="Disabled"
                                    data-testid="approve">@(a.HouseholdId == MyHouseholdId ? "Godkend" : "Godkend på deres vegne")</MudButton>
                     }
                 }
@@ -71,7 +71,7 @@
     @if (IsAdmin && OnReopen.HasDelegate)
     {
         <MudButton Variant="Variant.Outlined" Color="Color.Warning" StartIcon="@Icons.Material.Filled.LockOpen" Class="mb-4"
-                   OnClick="OnReopen" data-testid="reopen">Genåbn turen</MudButton>
+                   OnClick="OnReopen" Disabled="Disabled" data-testid="reopen">Genåbn turen</MudButton>
     }
 }
 
@@ -87,6 +87,10 @@
 
     [Parameter]
     public Guid? MyHouseholdId { get; set; }
+
+    /// <summary>A change is being saved: the action buttons are disabled so it isn't sent twice.</summary>
+    [Parameter]
+    public bool Disabled { get; set; }
 
     [Parameter]
     public EventCallback OnClose { get; set; }

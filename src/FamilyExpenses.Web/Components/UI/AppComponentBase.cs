@@ -27,6 +27,10 @@ public abstract class AppComponentBase : ComponentBase
     {
         ArgumentNullException.ThrowIfNull(action);
         Busy = true;
+        var conflict = false;
+
+        // Show the busy state (disabled buttons) while the change runs, not only when it's done.
+        StateHasChanged();
         try
         {
             await action();
@@ -50,13 +54,26 @@ public abstract class AppComponentBase : ComponentBase
             Snackbar.Add(ex.Message, Severity.Error);
             Navigation.NavigateTo("/");
         }
+        catch (ConcurrencyConflictException ex)
+        {
+            Snackbar.Add(ex.Message, Severity.Warning);
+            conflict = true;
+        }
         finally
         {
             Busy = false;
         }
 
+        if (conflict)
+        {
+            await OnConcurrencyConflictAsync();
+        }
+
         return false;
     }
+
+    /// <summary>Someone else saved first and nothing was changed: reload so the user retries on fresh data.</summary>
+    protected virtual Task OnConcurrencyConflictAsync() => Task.CompletedTask;
 
     /// <summary>Loads data; returns default on error (after showing it).</summary>
     protected async Task<T?> LoadAsync<T>(Func<Task<T>> load)

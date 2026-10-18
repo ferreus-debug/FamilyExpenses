@@ -1,6 +1,8 @@
+using System.Globalization;
 using FamilyExpenses.Application.Abstractions;
 using FamilyExpenses.Application.Common;
 using FamilyExpenses.Domain.Common;
+using FamilyExpenses.Domain.Events;
 
 namespace FamilyExpenses.Application.Settlements;
 
@@ -14,6 +16,8 @@ public sealed class SettlementService(
     IUserDirectory users,
     TimeProvider time)
 {
+    private static readonly CultureInfo Danish = CultureInfo.GetCultureInfo("da-DK");
+
     public async Task<SettlementDto> GetAsync(Guid eventId, CancellationToken cancellationToken = default)
     {
         await using var uow = uowFactory.Create();
@@ -90,15 +94,37 @@ public sealed class SettlementService(
         await using var uow = uowFactory.Create();
         var (expenseEvent, member) = await uow.LoadForMemberAsync(currentUser, eventId, cancellationToken);
         EventAccess.RequirePaymentAccess(member, fromHouseholdId, toHouseholdId);
+        var money = new Money(amount);
+        EnsureNotMoreThanOutstanding(expenseEvent, fromHouseholdId, toHouseholdId, money);
         var payment = expenseEvent.RecordPayment(
             fromHouseholdId,
             toHouseholdId,
-            new Money(amount),
+            money,
             DateOnly.FromDateTime(time.GetLocalNow().DateTime),
             member.UserId,
             time.GetUtcNow());
         await uow.SaveChangesAsync(cancellationToken);
         return payment.Id;
+    }
+
+    /// <summary>
+    /// The page sends the transfer it showed, which may be stale: if someone else in the household has just
+    /// marked it as paid, recording it again would pay twice and flip the balances. So the amount is checked
+    /// against what is still outstanding right now.
+    /// </summary>
+    private static void EnsureNotMoreThanOutstanding(ExpenseEvent expenseEvent, Guid fromHouseholdId, Guid toHouseholdId, Money amount)
+    {
+        var outstanding = expenseEvent.CalculateSettlement().Transfers
+            .Where(t => t.FromHouseholdId == fromHouseholdId && t.ToHouseholdId == toHouseholdId)
+            .Aggregate(Money.Zero, (sum, t) => sum + t.Amount);
+        if (amount > outstanding)
+        {
+            var from = expenseEvent.GetHousehold(fromHouseholdId).Name;
+            var to = expenseEvent.GetHousehold(toHouseholdId).Name;
+            throw new DomainException(outstanding == Money.Zero
+                ? $"{from} skylder ikke {to} noget – måske har en anden lige registreret betalingen. Opdatér siden."
+                : $"{from} skylder kun {to} {outstanding.Amount.ToString("N2", Danish)} {expenseEvent.Currency} – måske har en anden lige registreret en betaling. Opdatér siden.");
+        }
     }
 
     public async Task RemovePaymentAsync(Guid eventId, Guid paymentId, CancellationToken cancellationToken = default)
